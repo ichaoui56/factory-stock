@@ -64,7 +64,7 @@ function toLatinNumbers(str: string | number): string {
     "٤": "4",
     "٥": "5",
     "٦": "6",
-    "٢": "7",
+    "٧": "7",
     "٨": "8",
     "٩": "9",
   }

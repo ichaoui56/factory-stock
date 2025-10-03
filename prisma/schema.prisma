@@ -1,0 +1,149 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or "mysql", "sqlite", etc.
+  url      = env("DATABASE_URL")
+}
+
+// المستخدم (HR)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  fullName  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// أنواع العمل
+enum WorkType {
+  LAFSOW_MAHDI      // لافصو مهدي
+  ALFASALA          // الفصالة
+  BOTH              // كلاهما
+}
+
+// العامل
+model Worker {
+  id             String       @id @default(cuid())
+  fullName       String
+  phoneNumber    String
+  weeklyPayment  Float
+  workType       WorkType
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // العلاقات
+  attendances    Attendance[]
+  payments       Payment[]
+
+  @@map("workers")
+}
+
+// أنواع الحضور
+enum AttendanceType {
+  FULL_DAY
+  DAY_AND_NIGHT
+  HALF_DAY
+  ABSENCE
+}
+
+// سجل الحضور
+model Attendance {
+  id         String         @id @default(cuid())
+  workerId   String
+  date       DateTime       @db.Date
+  type       AttendanceType
+  weekNumber String         // مثل: "W01", "W52"
+  year       Int
+  createdAt  DateTime       @default(now())
+  
+  // العلاقات
+  worker     Worker         @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId])
+  @@index([weekNumber, year])
+  @@map("attendances")
+}
+
+// أنواع الدفع
+enum PaymentType {
+  DAILY       // دفعة يومية
+  WEEKLY      // دفعة أسبوعية
+  PARTIAL     // دفعة جزئية
+}
+
+// دفعات العمال
+model Payment {
+  id            String        @id @default(cuid())
+  workerId      String
+  amount        Float
+  paymentType   PaymentType
+  weekNumber    String        // مثل: "W01", "W52"
+  year          Int
+  note          String?
+  createdAt     DateTime      @default(now())
+  
+  // العلاقات
+  worker        Worker        @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId])
+  @@index([weekNumber, year])
+  @@map("payments")
+}
+
+// العميل
+model Client {
+  id          String          @id @default(cuid())
+  name        String
+  city        String
+  phoneNumber String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  // العلاقات
+  transactions    Transaction[]
+  clientPayments  ClientPayment[]
+
+  @@map("clients")
+}
+
+// معاملات العميل (المبيعات)
+model Transaction {
+  id          String   @id @default(cuid())
+  clientId    String
+  amount      Float
+  description String
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  
+  // العلاقات
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([date])
+  @@map("transactions")
+}
+
+// دفعات العميل
+model ClientPayment {
+  id            String        @id @default(cuid())
+  clientId      String
+  amount        Float
+  note          String?
+  date          DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  
+  // العلاقات
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([date])
+  @@map("client_payments")
+}

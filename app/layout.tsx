@@ -14,7 +14,7 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   title: "نظام إدارة المصنع",
   description: "نظام إدارة الموارد البشرية والعملاء",
-  generator: "v0.app",
+  generator: "factory-dashboard",
 }
 
 export default function RootLayout({
