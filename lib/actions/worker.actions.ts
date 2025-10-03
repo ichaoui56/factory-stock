@@ -330,34 +330,6 @@ export async function getWeeklyReport(weekNumber: string, year: number) {
   }
 }
 
-// ==================== Helper Functions ====================
-
-export function mapWorkTypeToFrontend(workType: WorkType): string {
-  switch (workType) {
-    case "LAFSOW_MAHDI":
-      return "lafso-mahdi"
-    case "ALFASALA":
-      return "al-fasala"
-    case "BOTH":
-      return "both"
-    default:
-      return "lafso-mahdi"
-  }
-}
-
-export function mapWorkTypeToDatabase(workType: string): WorkType {
-  switch (workType) {
-    case "lafso-mahdi":
-      return "LAFSOW_MAHDI"
-    case "al-fasala":
-      return "ALFASALA"
-    case "both":
-      return "BOTH"
-    default:
-      return "LAFSOW_MAHDI"
-  }
-}
-
 // ==================== Search and Filter ====================
 
 export async function searchWorkers(query: string, workType?: "LAFSOW_MAHDI" | "ALFASALA" | "BOTH") {

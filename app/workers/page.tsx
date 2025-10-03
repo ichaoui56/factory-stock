@@ -1,3 +1,6 @@
+"use client"
+
+import { useState, useRef } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { WorkersTable } from "@/components/workers-table"
 import { AddWorkerDialog } from "@/components/add-worker-dialog"
@@ -6,6 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
 
 export default function WorkersPage() {
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleWorkerChange = () => {
+    setRefreshKey(prev => prev + 1)
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-4 md:space-y-6">
@@ -28,7 +37,7 @@ export default function WorkersPage() {
                 تسجيل الحضور
               </Button>
             </Link>
-            <AddWorkerDialog />
+            <AddWorkerDialog onWorkerAdded={handleWorkerChange} />
           </div>
         </div>
 
@@ -45,13 +54,13 @@ export default function WorkersPage() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="all">
-            <WorkersTable />
+            <WorkersTable key={`all-${refreshKey}`} />
           </TabsContent>
           <TabsContent value="lafso-mahdi">
-            <WorkersTable workTypeFilter="lafso-mahdi" />
+            <WorkersTable key={`lafso-${refreshKey}`} workTypeFilter="lafso-mahdi" />
           </TabsContent>
           <TabsContent value="al-fasala">
-            <WorkersTable workTypeFilter="al-fasala" />
+            <WorkersTable key={`fasala-${refreshKey}`} workTypeFilter="al-fasala" />
           </TabsContent>
         </Tabs>
       </div>

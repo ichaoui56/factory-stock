@@ -1,4 +1,5 @@
 import { Worker, Attendance, Payment } from "@prisma/client"
+import { mapWorkTypeToFrontend } from "@/lib/utils/worker-utils"
 
 export type WorkerWithRelations = Worker & {
   attendances: Attendance[]
@@ -29,15 +30,4 @@ export function convertWorkerToFrontend(worker: Worker): FrontendWorker {
   }
 }
 
-function mapWorkTypeToFrontend(workType: string): string {
-  switch (workType) {
-    case "LAFSOW_MAHDI":
-      return "lafso-mahdi"
-    case "ALFASALA":
-      return "al-fasala"
-    case "BOTH":
-      return "both"
-    default:
-      return "lafso-mahdi"
-  }
-}
+// Using mapWorkTypeToFrontend from worker-utils

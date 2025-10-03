@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,45 +14,68 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Pencil } from "lucide-react"
-
-interface Worker {
-  id: string
-  name: string
-  weeklySalary: number
-  workType: string
-  active: boolean
-}
+import { toast } from "sonner"
+import { updateWorker } from "@/lib/actions/worker.actions"
+import { mapWorkTypeToFrontend, mapWorkTypeToDatabase } from "@/lib/utils/worker-utils"
+import type { Worker } from "@prisma/client"
 
 interface EditWorkerDialogProps {
   worker: Worker
-  onSave?: (updatedWorker: Worker) => void
+  onWorkerUpdated?: () => void
 }
 
-export function EditWorkerDialog({ worker, onSave }: EditWorkerDialogProps) {
+export function EditWorkerDialog({ worker, onWorkerUpdated }: EditWorkerDialogProps) {
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    name: worker.name,
-    weeklySalary: worker.weeklySalary.toString(),
-    workType: worker.workType,
-    active: worker.active,
+    fullName: worker.fullName,
+    phoneNumber: worker.phoneNumber,
+    weeklyPayment: worker.weeklyPayment.toString(),
+    workType: mapWorkTypeToFrontend(worker.workType),
+    isActive: worker.isActive,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    const updatedWorker: Worker = {
-      ...worker,
-      name: formData.name,
-      weeklySalary: Number.parseFloat(formData.weeklySalary),
-      workType: formData.workType,
-      active: formData.active,
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        fullName: worker.fullName,
+        phoneNumber: worker.phoneNumber,
+        weeklyPayment: worker.weeklyPayment.toString(),
+        workType: mapWorkTypeToFrontend(worker.workType),
+        isActive: worker.isActive,
+      })
     }
+  }, [worker, open])
 
-    onSave?.(updatedWorker)
-    setOpen(false)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const result = await updateWorker(worker.id, {
+        fullName: formData.fullName,
+        phoneNumber: formData.phoneNumber,
+        weeklyPayment: parseFloat(formData.weeklyPayment),
+        workType: mapWorkTypeToDatabase(formData.workType) as "LAFSOW_MAHDI" | "ALFASALA" | "BOTH",
+        isActive: formData.isActive,
+      })
+
+      if (result.success) {
+        toast.success("تم تحديث بيانات العامل بنجاح")
+        setOpen(false)
+        onWorkerUpdated?.()
+      } else {
+        toast.error(result.error || "فشل في تحديث بيانات العامل")
+      }
+    } catch (error) {
+      toast.error("حدث خطأ أثناء تحديث البيانات")
+      console.error("Error updating worker:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -71,48 +93,60 @@ export function EditWorkerDialog({ worker, onSave }: EditWorkerDialogProps) {
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">الاسم الكامل</Label>
+              <Label htmlFor="fullName">الاسم الكامل</Label>
               <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                id="fullName"
+                value={formData.fullName}
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                 placeholder="أدخل الاسم الكامل"
                 required
+                disabled={loading}
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="weeklySalary">الراتب الأسبوعي (ر.س)</Label>
+              <Label htmlFor="phoneNumber">رقم الهاتف</Label>
               <Input
-                id="weeklySalary"
+                id="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                placeholder="أدخل رقم الهاتف"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="weeklyPayment">الراتب الأسبوعي (ر.س)</Label>
+              <Input
+                id="weeklyPayment"
                 type="number"
                 step="0.01"
-                value={formData.weeklySalary}
-                onChange={(e) => setFormData({ ...formData, weeklySalary: e.target.value })}
+                value={formData.weeklyPayment}
+                onChange={(e) => setFormData({ ...formData, weeklyPayment: e.target.value })}
                 placeholder="1200"
                 required
+                disabled={loading}
               />
             </div>
 
             <div className="grid gap-2">
               <Label>نوع العمل</Label>
-              <RadioGroup
+              <Select
                 value={formData.workType}
                 onValueChange={(value) => setFormData({ ...formData, workType: value })}
+                required
+                disabled={loading}
               >
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <RadioGroupItem value="lafso-mahdi" id="edit-lafso-mahdi" />
-                  <Label htmlFor="edit-lafso-mahdi" className="cursor-pointer">
-                    لافصو مهدي
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <RadioGroupItem value="al-fasala" id="edit-al-fasala" />
-                  <Label htmlFor="edit-al-fasala" className="cursor-pointer">
-                    الفصالة
-                  </Label>
-                </div>
-              </RadioGroup>
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر نوع العمل" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lafso-mahdi">لافصو مهدي</SelectItem>
+                  <SelectItem value="al-fasala">الفصالة</SelectItem>
+                  <SelectItem value="both">كلاهما</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-center justify-between rounded-lg border p-4">
@@ -121,21 +155,26 @@ export function EditWorkerDialog({ worker, onSave }: EditWorkerDialogProps) {
                   حالة العامل
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  {formData.active ? "العامل نشط ويظهر في الحضور اليومي" : "العامل غير نشط ولن يظهر في الحضور اليومي"}
+                  {formData.isActive
+                    ? "العامل نشط ويظهر في الحضور اليومي"
+                    : "العامل غير نشط ولن يظهر في الحضور اليومي"}
                 </p>
               </div>
               <Switch
                 id="active-toggle"
-                checked={formData.active}
-                onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
+                checked={formData.isActive}
+                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                disabled={loading}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               إلغاء
             </Button>
-            <Button type="submit">حفظ التغييرات</Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "جاري الحفظ..." : "حفظ التغييرات"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1,7 +1,8 @@
 "use client"
 
-import type React from "react"
+"use client"
 
+import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,44 +19,60 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { DollarSign } from "lucide-react"
+import { recordPayment } from "@/lib/actions/worker.actions"
+import { toast } from "sonner"
 
 interface RecordPaymentDialogProps {
   workerId: string
   workerName: string
   currentBalance: number
+  onPaymentRecorded?: () => void
 }
 
 function toLatinNumbers(str: string | number): string {
   const arabicToLatin: Record<string, string> = {
-    "٠": "0",
-    "١": "1",
-    "٢": "2",
-    "٣": "3",
-    "٤": "4",
-    "٥": "5",
-    "٦": "6",
-    "٧": "7",
-    "٨": "8",
-    "٩": "9",
+    "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
+    "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
   }
   return String(str).replace(/[٠-٩]/g, (d) => arabicToLatin[d] || d)
 }
 
-export function RecordPaymentDialog({ workerId, workerName, currentBalance }: RecordPaymentDialogProps) {
+export function RecordPaymentDialog({ workerId, workerName, currentBalance, onPaymentRecorded }: RecordPaymentDialogProps) {
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [amount, setAmount] = useState("")
-  const [paymentType, setPaymentType] = useState("daily")
+  const [paymentType, setPaymentType] = useState<"DAILY" | "WEEKLY" | "PARTIAL">("DAILY")
   const [note, setNote] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Here you would save the payment to your database
-    console.log("Recording payment:", { workerId, amount, paymentType, note })
-    setOpen(false)
-    // Reset form
-    setAmount("")
-    setPaymentType("daily")
-    setNote("")
+    setLoading(true)
+
+    try {
+      const result = await recordPayment({
+        workerId,
+        amount: parseFloat(amount),
+        paymentType,
+        note,
+      })
+
+      if (result.success) {
+        toast.success("تم تسجيل الدفعة بنجاح")
+        setOpen(false)
+        // Reset form
+        setAmount("")
+        setPaymentType("DAILY")
+        setNote("")
+        onPaymentRecorded?.()
+      } else {
+        toast.error(result.error || "فشل في تسجيل الدفعة")
+      }
+    } catch (error) {
+      toast.error("حدث خطأ أثناء تسجيل الدفعة")
+      console.error("Error recording payment:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -102,6 +119,7 @@ export function RecordPaymentDialog({ workerId, workerName, currentBalance }: Re
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
+                disabled={loading}
                 className="text-lg"
               />
             </div>
@@ -109,16 +127,14 @@ export function RecordPaymentDialog({ workerId, workerName, currentBalance }: Re
             {/* Payment Type */}
             <div className="space-y-2">
               <Label htmlFor="paymentType">نوع الدفعة *</Label>
-              <Select value={paymentType} onValueChange={setPaymentType}>
+              <Select value={paymentType} onValueChange={(value: "DAILY" | "WEEKLY" | "PARTIAL") => setPaymentType(value)} disabled={loading}>
                 <SelectTrigger id="paymentType">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily">دفعة يومية</SelectItem>
-                  <SelectItem value="weekly">راتب أسبوعي</SelectItem>
-                  <SelectItem value="partial">دفعة جزئية</SelectItem>
-                  <SelectItem value="advance">سلفة</SelectItem>
-                  <SelectItem value="bonus">مكافأة</SelectItem>
+                  <SelectItem value="DAILY">دفعة يومية</SelectItem>
+                  <SelectItem value="WEEKLY">راتب أسبوعي</SelectItem>
+                  <SelectItem value="PARTIAL">دفعة جزئية</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -132,16 +148,17 @@ export function RecordPaymentDialog({ workerId, workerName, currentBalance }: Re
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={3}
+                disabled={loading}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               إلغاء
             </Button>
-            <Button type="submit" disabled={!amount || Number.parseFloat(amount) <= 0}>
-              تسجيل الدفعة
+            <Button type="submit" disabled={!amount || parseFloat(amount) <= 0 || loading}>
+              {loading ? "جاري التسجيل..." : "تسجيل الدفعة"}
             </Button>
           </DialogFooter>
         </form>

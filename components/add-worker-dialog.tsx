@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,24 +15,51 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { createWorker } from "@/lib/actions/worker.actions"
+import { toast } from "sonner"
 
-export function AddWorkerDialog() {
+interface AddWorkerDialogProps {
+  onWorkerAdded?: () => void
+}
+
+export function AddWorkerDialog({ onWorkerAdded }: AddWorkerDialogProps) {
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    name: "",
-    weeklySalary: "",
-    phone: "",
-    address: "",
+    fullName: "",
+    phoneNumber: "",
+    weeklyPayment: "",
     workType: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Here you would typically send the data to your backend
-    console.log("New worker data:", formData)
-    // Reset form and close dialog
-    setFormData({ name: "", weeklySalary: "", phone: "", address: "", workType: "" })
-    setOpen(false)
+    setLoading(true)
+
+    try {
+      const result = await createWorker({
+        fullName: formData.fullName,
+        phoneNumber: formData.phoneNumber,
+        weeklyPayment: parseFloat(formData.weeklyPayment),
+        workType: formData.workType as "LAFSOW_MAHDI" | "ALFASALA" | "BOTH",
+      })
+
+      if (result.success) {
+        toast.success("تم إضافة العامل بنجاح")
+        setFormData({ fullName: "", phoneNumber: "", weeklyPayment: "", workType: "" })
+        setOpen(false)
+        if (onWorkerAdded) {
+          onWorkerAdded()
+        }
+      } else {
+        toast.error(result.error || "فشل في إضافة العامل")
+      }
+    } catch (error) {
+      toast.error("حدث خطأ أثناء إضافة العامل")
+      console.error("Error adding worker:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -56,15 +82,16 @@ export function AddWorkerDialog() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm md:text-base">
+              <Label htmlFor="fullName" className="text-sm md:text-base">
                 الاسم الكامل <span className="text-destructive">*</span>
               </Label>
               <Input
-                id="name"
+                id="fullName"
                 placeholder="أدخل اسم العامل"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={formData.fullName}
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                 required
+                disabled={loading}
                 className="text-sm md:text-base"
               />
             </div>
@@ -76,63 +103,56 @@ export function AddWorkerDialog() {
                 value={formData.workType}
                 onValueChange={(value) => setFormData({ ...formData, workType: value })}
                 required
+                disabled={loading}
               >
                 <SelectTrigger className="text-sm md:text-base">
                   <SelectValue placeholder="اختر نوع العمل" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="lafso-mahdi">لافصو مهدي</SelectItem>
-                  <SelectItem value="al-fasala">الفصالة</SelectItem>
+                  <SelectItem value="LAFSOW_MAHDI">لافصو مهدي</SelectItem>
+                  <SelectItem value="ALFASALA">الفصالة</SelectItem>
+                  <SelectItem value="BOTH">كلاهما</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="weeklySalary" className="text-sm md:text-base">
-                الراتب الأسبوعي (ر.س) <span className="text-destructive">*</span>
+              <Label htmlFor="weeklyPayment" className="text-sm md:text-base">
+                الراتب الأسبوعي (د.م.) <span className="text-destructive">*</span>
               </Label>
               <Input
-                id="weeklySalary"
+                id="weeklyPayment"
                 type="number"
                 step="0.01"
                 placeholder="1200"
-                value={formData.weeklySalary}
-                onChange={(e) => setFormData({ ...formData, weeklySalary: e.target.value })}
+                value={formData.weeklyPayment}
+                onChange={(e) => setFormData({ ...formData, weeklyPayment: e.target.value })}
                 required
+                disabled={loading}
                 className="text-sm md:text-base"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone" className="text-sm md:text-base">
-                رقم الهاتف
+              <Label htmlFor="phoneNumber" className="text-sm md:text-base">
+                رقم الهاتف <span className="text-destructive">*</span>
               </Label>
               <Input
-                id="phone"
+                id="phoneNumber"
                 type="tel"
-                placeholder="05xxxxxxxx"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="text-sm md:text-base"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address" className="text-sm md:text-base">
-                العنوان
-              </Label>
-              <Input
-                id="address"
-                placeholder="أدخل عنوان العامل"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="0612345678"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                required
+                disabled={loading}
                 className="text-sm md:text-base"
               />
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="min-h-[44px]">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading} className="min-h-[44px]">
               إلغاء
             </Button>
-            <Button type="submit" className="min-h-[44px]">
-              حفظ العامل
+            <Button type="submit" disabled={loading} className="min-h-[44px]">
+              {loading ? "جاري الحفظ..." : "حفظ العامل"}
             </Button>
           </DialogFooter>
         </form>

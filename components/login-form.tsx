@@ -60,7 +60,7 @@ export function LoginForm() {
               dir="ltr"
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 mb-5">
             <Label htmlFor="password">كلمة المرور</Label>
             <Input
               id="password"
