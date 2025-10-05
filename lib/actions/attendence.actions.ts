@@ -4,17 +4,10 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { AttendanceType, WorkType } from "@prisma/client"
 import { calculateDailyRate, calculatePayment } from "@/lib/utils/attendance"
+import { getWeekNumber, getWeekDates } from "@/lib/utils"
 
 // Re-export utility functions for convenience
 export { calculateDailyRate, calculatePayment }
-
-// Get week number from date
-function getWeekNumber(date: Date): string {
-  const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
-  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
-  const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
-  return `W${weekNumber.toString().padStart(2, '0')}`
-}
 
 // Get workers by work type
 export async function getWorkersByWorkType(workType: WorkType) {
@@ -43,8 +36,6 @@ export async function getWorkersByWorkType(workType: WorkType) {
   }
 }
 
-// In your server actions file, update the markAttendance function:
-
 export async function markAttendance(
   workerId: string,
   date: Date,
@@ -53,10 +44,10 @@ export async function markAttendance(
   try {
     const weekNumber = getWeekNumber(date)
     const year = date.getFullYear()
-    
+
     // Determine which day of the week (0 = Sunday, 1 = Monday, etc.)
     const dayOfWeek = date.getDay()
-    
+
     // Map day of week to field name (Monday = 1, Saturday = 6, skip Sunday = 0)
     const dayFieldMap: { [key: number]: keyof Omit<typeof updateData, 'updatedAt'> } = {
       1: 'monday',
@@ -66,9 +57,9 @@ export async function markAttendance(
       5: 'friday',
       6: 'saturday'
     }
-    
+
     const dayField = dayFieldMap[dayOfWeek]
-    
+
     if (!dayField) {
       return { success: false, error: "Invalid day (Sundays are not working days)" }
     }
@@ -111,7 +102,7 @@ export async function markAttendance(
         // Set only the specific day, leave others as null/undefined (will be treated as not recorded)
         [dayField]: type
       }
-      
+
       await prisma.weeklyAttendance.create({
         data: createData
       })
@@ -127,8 +118,8 @@ export async function markAttendance(
 
 // Get weekly attendance with payment calculations
 export async function getWeeklyAttendance(
-  weekNumber: string, 
-  year: number, 
+  weekNumber: string,
+  year: number,
   workType?: WorkType
 ) {
   try {
@@ -164,14 +155,14 @@ export async function getWeeklyAttendance(
     // Calculate payments for each record
     const attendanceWithPayments = attendance.map(record => {
       const dailyRate = calculateDailyRate(record.worker.weeklyPayment)
-      
+
       const mondayPay = calculatePayment(dailyRate, record.monday)
       const tuesdayPay = calculatePayment(dailyRate, record.tuesday)
       const wednesdayPay = calculatePayment(dailyRate, record.wednesday)
       const thursdayPay = calculatePayment(dailyRate, record.thursday)
       const fridayPay = calculatePayment(dailyRate, record.friday)
       const saturdayPay = calculatePayment(dailyRate, record.saturday)
-      
+
       const weeklyTotal = mondayPay + tuesdayPay + wednesdayPay + thursdayPay + fridayPay + saturdayPay
 
       return {
@@ -201,7 +192,7 @@ export async function getAttendanceByDate(date: Date, workType?: WorkType) {
     const weekNumber = getWeekNumber(date)
     const year = date.getFullYear()
     const dayOfWeek = date.getDay()
-    
+
     const dayFieldMap: { [key: number]: string } = {
       1: 'monday',
       2: 'tuesday',
@@ -210,9 +201,9 @@ export async function getAttendanceByDate(date: Date, workType?: WorkType) {
       5: 'friday',
       6: 'saturday'
     }
-    
+
     const dayField = dayFieldMap[dayOfWeek]
-    
+
     if (!dayField) {
       return { success: false, error: "Invalid day (Sundays are not working days)" }
     }
@@ -246,7 +237,7 @@ export async function getAttendanceByDate(date: Date, workType?: WorkType) {
       const attendanceType = record[dayField as keyof typeof record] as AttendanceType | null
       const dailyRate = calculateDailyRate(record.worker.weeklyPayment)
       const payment = calculatePayment(dailyRate, attendanceType)
-    
+
       return {
         id: record.id,
         workerId: record.workerId,
@@ -289,42 +280,42 @@ export async function getAttendanceHistory(filters: {
       const [year, month] = filters.month.split('-').map(Number)
       const startDate = new Date(year, month - 1, 1)
       const endDate = new Date(year, month, 0)
-      
+
       // Get all week numbers in the month
       const currentDate = new Date(startDate)
       const weekSet = new Set<string>()
       const yearSet = new Set<number>()
-      
+
       while (currentDate <= endDate) {
         weekSet.add(getWeekNumber(currentDate))
         yearSet.add(currentDate.getFullYear())
         currentDate.setDate(currentDate.getDate() + 1)
       }
-      
+
       weekNumbers = Array.from(weekSet)
       years = Array.from(yearSet)
-      
-      where.OR = weekNumbers.flatMap(wn => 
+
+      where.OR = weekNumbers.flatMap(wn =>
         years.map(y => ({ weekNumber: wn, year: y }))
       )
     } else if (filters.startDate || filters.endDate) {
       const start = filters.startDate || new Date(2000, 0, 1)
       const end = filters.endDate || new Date()
-      
+
       const currentDate = new Date(start)
       const weekSet = new Set<string>()
       const yearSet = new Set<number>()
-      
+
       while (currentDate <= end) {
         weekSet.add(getWeekNumber(currentDate))
         yearSet.add(currentDate.getFullYear())
         currentDate.setDate(currentDate.getDate() + 7)
       }
-      
+
       weekNumbers = Array.from(weekSet)
       years = Array.from(yearSet)
-      
-      where.OR = weekNumbers.flatMap(wn => 
+
+      where.OR = weekNumbers.flatMap(wn =>
         years.map(y => ({ weekNumber: wn, year: y }))
       )
     }
@@ -355,7 +346,7 @@ export async function getAttendanceHistory(filters: {
     weeklyRecords.forEach(record => {
       dayFields.forEach((dayField, index) => {
         const attendanceType = record[dayField as keyof typeof record] as AttendanceType
-        
+
         // Skip if filtering by status and doesn't match
         if (filters.status && filters.status !== 'ABSENCE' && attendanceType !== filters.status) {
           return
@@ -364,17 +355,9 @@ export async function getAttendanceHistory(filters: {
           return
         }
 
-        // Calculate the actual date for this day
-        const weekNum = parseInt(record.weekNumber.replace('W', ''))
-        const date = new Date(record.year, 0, 1 + (weekNum - 1) * 7 + dayOffsets[index])
-        
-        // Adjust to get the correct Monday
-        const dayOfWeek = date.getDay()
-        const daysFromMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-        date.setDate(date.getDate() + daysFromMonday)
-        
-        // Add the day offset
-        date.setDate(date.getDate() + dayOffsets[index])
+        // Calculate the actual date for this day using the unified getWeekDates function
+        const weekDates = getWeekDates(record.weekNumber, record.year)
+        const date = weekDates[index]
 
         const dailyRate = calculateDailyRate(record.worker.weeklyPayment)
         const payment = calculatePayment(dailyRate, attendanceType)
@@ -436,14 +419,14 @@ export async function getWeeklySummary(weekNumber: string, year: number, workTyp
     // Calculate payments for each record
     const workersWithPayments = attendance.map(record => {
       const dailyRate = calculateDailyRate(record.worker.weeklyPayment)
-      
+
       const mondayPay = calculatePayment(dailyRate, record.monday)
       const tuesdayPay = calculatePayment(dailyRate, record.tuesday)
       const wednesdayPay = calculatePayment(dailyRate, record.wednesday)
       const thursdayPay = calculatePayment(dailyRate, record.thursday)
       const fridayPay = calculatePayment(dailyRate, record.friday)
       const saturdayPay = calculatePayment(dailyRate, record.saturday)
-      
+
       const weeklyTotal = mondayPay + tuesdayPay + wednesdayPay + thursdayPay + fridayPay + saturdayPay
 
       return {

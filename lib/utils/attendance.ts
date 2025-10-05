@@ -27,3 +27,5 @@ export function calculatePayment(dailyRate: number, type: AttendanceType | "notR
       return 0
   }
 }
+
+

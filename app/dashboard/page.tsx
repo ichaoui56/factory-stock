@@ -1,7 +1,7 @@
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { StatsCards } from "@/components/stats-cards"
 import { QuickActions } from "@/components/quick-actions"
-import { RecentActivity } from "@/components/recent-activity"
+import { WorkersBalance } from "@/components/workers-balance"
 
 export default function DashboardPage() {
   return (
@@ -16,7 +16,7 @@ export default function DashboardPage() {
 
         <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
           <QuickActions />
-          <RecentActivity />
+          <WorkersBalance />
         </div>
       </div>
     </DashboardLayout>

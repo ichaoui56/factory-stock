@@ -12,6 +12,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, ChevronLeft, ChevronRight, Search, Users } from "lucide-react"
 import { getWeeklySummary, getAttendanceHistory } from "@/lib/actions/attendence.actions"
 import { calculateDailyRate, calculatePayment } from "@/lib/utils/attendance"
+import { 
+  getWeekDates, 
+  getWeekNumber, 
+  formatDateForDisplay, 
+  formatGregorianDate, 
+  getArabicMonth,
+  toLatinNumbers,
+  dayNames 
+} from "@/lib/utils"
 import { WorkType, AttendanceType } from "@prisma/client"
 
 interface WeeklyAttendanceData {
@@ -45,58 +54,6 @@ interface WeeklyAttendanceData {
   totalAmount: number
 }
 
-function toLatinNumbers(str: string | number): string {
-  const arabicToLatin: Record<string, string> = {
-    "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
-    "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
-  }
-  return String(str).replace(/[٠-٩]/g, (d) => arabicToLatin[d] || d)
-}
-
-function formatGregorianDate(date: Date) {
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  return toLatinNumbers(`${year}/${month}/${day}`)
-}
-
-function getWeekDates(weekNumber: string, year: number): Date[] {
-  const weekNum = parseInt(weekNumber.replace('W', ''), 10)
-  const firstDayOfYear = new Date(year, 0, 1)
-  const firstDayOfYearDay = firstDayOfYear.getDay()
-  const daysToFirstMonday = firstDayOfYearDay === 0 ? 1 : 8 - firstDayOfYearDay
-  const firstMonday = new Date(firstDayOfYear)
-  firstMonday.setDate(firstDayOfYear.getDate() + (firstDayOfYearDay === 1 ? 0 : daysToFirstMonday))
-  const targetMonday = new Date(firstMonday)
-  targetMonday.setDate(firstMonday.getDate() + (weekNum - 1) * 7)
-  
-  const weekDays = []
-  for (let i = 0; i < 6; i++) {
-    const day = new Date(targetMonday)
-    day.setDate(targetMonday.getDate() + i)
-    weekDays.push(day)
-  }
-
-  return weekDays
-}
-
-function getWeekNumber(date: Date): string {
-  const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
-  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
-  const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
-  return `W${weekNumber.toString().padStart(2, '0')}`
-}
-
-function getArabicMonth(monthIndex: number): string {
-  const months = [
-    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
-  ]
-  return months[monthIndex]
-}
-
-const dayNames = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
-
 export default function AttendanceHistoryPage() {
   const [weeklyData, setWeeklyData] = useState<WeeklyAttendanceData[]>([])
   const [loading, setLoading] = useState(false)
@@ -114,7 +71,7 @@ export default function AttendanceHistoryPage() {
     setLoading(true)
     try {
       const workType = selectedWorkType !== 'all' ? selectedWorkType as WorkType : undefined
-      
+
       const result = await getAttendanceHistory({
         workType,
         startDate: selectedMonth !== 'all' ? new Date(selectedYear, parseInt(selectedMonth) - 1, 1) : undefined,
@@ -123,10 +80,10 @@ export default function AttendanceHistoryPage() {
 
       if (result.success && result.attendance) {
         const weeklyMap = new Map<string, WeeklyAttendanceData>()
-        
+
         result.attendance.forEach((record: any) => {
           const weekKey = `${record.weekNumber}-${record.year}`
-          
+
           if (!weeklyMap.has(weekKey)) {
             weeklyMap.set(weekKey, {
               weekNumber: record.weekNumber,
@@ -160,10 +117,10 @@ export default function AttendanceHistoryPage() {
             workTypesInData.add(worker.workType)
           })
         })
-        
+
         const availableTypes = Array.from(workTypesInData)
         setAvailableWorkTypes(availableTypes.length > 0 ? availableTypes : [WorkType.LAFSOW_MAHDI, WorkType.ALFASALA])
-        
+
       } else {
         setWeeklyData([])
         setAvailableWorkTypes([WorkType.LAFSOW_MAHDI, WorkType.ALFASALA])
@@ -208,7 +165,7 @@ export default function AttendanceHistoryPage() {
     const weekDates = getWeekDates(weekNumber, year)
     const monday = weekDates[0]
     const saturday = weekDates[5]
-    return `الاثنين، ${formatGregorianDate(monday)} - السبت، ${formatGregorianDate(saturday)}`
+    return `الاثنين، ${formatDateForDisplay(monday)} - السبت، ${formatDateForDisplay(saturday)}`
   }
 
   const getWorkTypeLabel = (workType: WorkType) => {
@@ -225,7 +182,7 @@ export default function AttendanceHistoryPage() {
   // Filter workers based on search query
   const filteredWeeklyData = weeklyData.map(weekData => ({
     ...weekData,
-    workers: weekData.workers.filter(worker => 
+    workers: weekData.workers.filter(worker =>
       worker.workerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       worker.workerId.toLowerCase().includes(searchQuery.toLowerCase())
     )
@@ -253,7 +210,7 @@ export default function AttendanceHistoryPage() {
 
   // Get work types that actually have data in the current filtered results
   const workTypesWithData = Array.from(new Set(
-    filteredWeeklyData.flatMap(week => 
+    filteredWeeklyData.flatMap(week =>
       week.workers.map(worker => worker.workType)
     )
   ))
@@ -361,8 +318,8 @@ export default function AttendanceHistoryPage() {
             <Card>
               <CardContent className="p-8 text-center">
                 <p className="text-muted-foreground">
-                  {searchQuery || selectedWorkType !== 'all' || selectedMonth !== 'all' 
-                    ? "لا توجد نتائج تطابق البحث" 
+                  {searchQuery || selectedWorkType !== 'all' || selectedMonth !== 'all'
+                    ? "لا توجد نتائج تطابق البحث"
                     : "لا توجد سجلات حضور مسجلة"}
                 </p>
               </CardContent>
@@ -370,7 +327,7 @@ export default function AttendanceHistoryPage() {
           ) : (
             filteredWeeklyData.map((weekData) => {
               const weekDates = getWeekDates(weekData.weekNumber, weekData.year)
-              
+
               return (
                 <div key={`${weekData.weekNumber}-${weekData.year}`} className="space-y-4">
                   {/* Week Header */}
@@ -414,7 +371,7 @@ export default function AttendanceHistoryPage() {
                     </TabsList>
 
                     {[WorkType.LAFSOW_MAHDI, WorkType.ALFASALA].map((workType) => {
-                      const workTypeData = weekData.workers.filter(worker => 
+                      const workTypeData = weekData.workers.filter(worker =>
                         worker.workType === workType
                       )
 
@@ -424,7 +381,7 @@ export default function AttendanceHistoryPage() {
                         if (!workTypesWithData.includes(workType)) {
                           return null
                         }
-                        
+
                         return (
                           <TabsContent key={workType} value={workType} className="mt-4">
                             <Card>

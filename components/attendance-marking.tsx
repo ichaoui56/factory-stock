@@ -11,6 +11,16 @@ import {
   getAttendanceByDate
 } from "@/lib/actions/attendence.actions"
 import { calculateDailyRate, calculatePayment } from "@/lib/utils/attendance"
+import { 
+  getWeekDates, 
+  getWeekNumber, 
+  formatDateForDisplay, 
+  formatGregorianDate, 
+  getRelativeDayLabel,
+  getArabicMonth,
+  toLatinNumbers,
+  dayNames 
+} from "@/lib/utils"
 import { WorkType, AttendanceType } from "@prisma/client"
 
 interface Worker {
@@ -22,83 +32,6 @@ interface Worker {
 }
 
 type AttendanceStatus = "FULL_DAY" | "HALF_DAY" | "DAY_AND_NIGHT" | "ABSENCE" | "notRecorded"
-
-function getWeekDates(weekOffset = 0) {
-  const today = new Date()
-  const currentDay = today.getDay()
-
-  const monday = new Date(today)
-  const daysFromMonday = currentDay === 0 ? -6 : 1 - currentDay
-  monday.setDate(today.getDate() + daysFromMonday)
-  monday.setDate(monday.getDate() + weekOffset * 7)
-
-  const weekDays = []
-  for (let i = 0; i < 6; i++) {
-    const day = new Date(monday)
-    day.setDate(monday.getDate() + i)
-    weekDays.push(day)
-  }
-
-  return weekDays
-}
-
-function toLatinNumbers(str: string | number): string {
-  const arabicToLatin: Record<string, string> = {
-    "٠": "0",
-    "١": "1",
-    "٢": "2",
-    "٣": "3",
-    "٤": "4",
-    "٥": "5",
-    "٦": "6",
-    "٧": "7",
-    "٨": "8",
-    "٩": "9",
-  }
-  return String(str).replace(/[٠-٩]/g, (d) => arabicToLatin[d] || d)
-}
-
-function formatGregorianDate(date: Date) {
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  return toLatinNumbers(`${year}/${month}/${day}`)
-}
-
-function getRelativeDayLabel(date: Date): string {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const compareDate = new Date(date)
-  compareDate.setHours(0, 0, 0, 0)
-
-  const diffTime = compareDate.getTime() - today.getTime()
-  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
-
-  if (diffDays === -1) return "أمس"
-  if (diffDays === 0) return "اليوم"
-  if (diffDays === 1) return "غداً"
-  return dayNames[compareDate.getDay() === 0 ? 6 : compareDate.getDay() - 1]
-}
-
-const dayNames = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
-
-function getArabicMonth(monthIndex: number): string {
-  const months = [
-    "يناير",
-    "فبراير",
-    "مارس",
-    "أبريل",
-    "مايو",
-    "يونيو",
-    "يوليو",
-    "أغسطس",
-    "سبتمبر",
-    "أكتوبر",
-    "نوفمبر",
-    "ديسمبر",
-  ]
-  return months[monthIndex]
-}
 
 export function AttendanceMarking() {
   // Calculate initial day index based on current day
@@ -218,11 +151,12 @@ export function AttendanceMarking() {
     }
   }
 
- const getAttendanceStatus = (workerId: string, date: Date): AttendanceStatus => {
-  const dateKey = getDateKey(date)
-  const status = attendance[workerId]?.[dateKey]
-  return status || "notRecorded" // This will handle both undefined and null values
-}
+  const getAttendanceStatus = (workerId: string, date: Date): AttendanceStatus => {
+    const dateKey = getDateKey(date)
+    const status = attendance[workerId]?.[dateKey]
+    return status || "notRecorded"
+  }
+
   return (
     <div className="space-y-3 md:space-y-4">
       {/* Week Navigation */}
@@ -242,7 +176,7 @@ export function AttendanceMarking() {
               <div className="text-center flex-1 min-w-0">
                 <h2 className="text-sm md:text-lg font-bold mb-0.5">{isCurrentWeek ? "الأسبوع الحالي" : "الأسبوع"}</h2>
                 <p className="text-muted-foreground text-[10px] md:text-xs break-words">
-                  الاثنين، {formatGregorianDate(weekDates[0])} - السبت، {formatGregorianDate(weekDates[5])} (6 أيام عمل)
+                  الاثنين، {formatDateForDisplay(weekDates[0])} - السبت، {formatDateForDisplay(weekDates[5])} (6 أيام عمل)
                 </p>
               </div>
 
