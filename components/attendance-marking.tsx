@@ -1,33 +1,37 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react"
+import {
+  getWorkersByWorkType,
+  markAttendance,
+  getAttendanceByDate
+} from "@/lib/actions/attendence.actions"
+import { calculateDailyRate, calculatePayment } from "@/lib/utils/attendance"
+import { WorkType, AttendanceType } from "@prisma/client"
 
-const workers = [
-  { id: "#1", name: "أحمد محمد علي", dailyRate: 200, workType: "لافصو مهدي" as const, active: true },
-  { id: "#2", name: "فاطمة أحمد حسن", dailyRate: 166.667, workType: "الفصالة" as const, active: true },
-  { id: "#3", name: "محمد سالم القاسمي", dailyRate: 233.333, workType: "لافصو مهدي" as const, active: false },
-]
+interface Worker {
+  id: string
+  fullName: string
+  phoneNumber: string
+  weeklyPayment: number
+  workType: WorkType
+}
 
-type AttendanceStatus = "full" | "half" | "oneAndHalf" | "absent" | "notRecorded"
-type WorkType = "لافصو مهدي" | "الفصالة"
+type AttendanceStatus = "FULL_DAY" | "HALF_DAY" | "DAY_AND_NIGHT" | "ABSENCE" | "notRecorded"
 
 function getWeekDates(weekOffset = 0) {
   const today = new Date()
-  const currentDay = today.getDay() // 0 = Sunday, 1 = Monday, etc.
+  const currentDay = today.getDay()
 
-  // Calculate Monday of current week
   const monday = new Date(today)
   const daysFromMonday = currentDay === 0 ? -6 : 1 - currentDay
   monday.setDate(today.getDate() + daysFromMonday)
-
-  // Add week offset
   monday.setDate(monday.getDate() + weekOffset * 7)
 
-  // Generate 6 days (Monday to Saturday)
   const weekDays = []
   for (let i = 0; i < 6; i++) {
     const day = new Date(monday)
@@ -47,11 +51,10 @@ function toLatinNumbers(str: string | number): string {
     "٤": "4",
     "٥": "5",
     "٦": "6",
-    "٢": "7",
+    "٧": "7",
     "٨": "8",
     "٩": "9",
   }
-
   return String(str).replace(/[٠-٩]/g, (d) => arabicToLatin[d] || d)
 }
 
@@ -97,26 +100,21 @@ function getArabicMonth(monthIndex: number): string {
   return months[monthIndex]
 }
 
-function calculatePayment(dailyRate: number, status: AttendanceStatus) {
-  switch (status) {
-    case "full":
-      return dailyRate
-    case "half":
-      return dailyRate * 0.5
-    case "oneAndHalf":
-      return dailyRate * 1.5
-    case "absent":
-      return 0
-    default:
-      return 0
-  }
-}
-
 export function AttendanceMarking() {
+  // Calculate initial day index based on current day
+  const getCurrentDayIndex = () => {
+    const today = new Date()
+    const currentDay = today.getDay()
+    // Convert Sunday (0) to Saturday index (5), and Monday-Saturday (1-6) to (0-5)
+    return currentDay === 0 ? 5 : currentDay - 1
+  }
+
   const [weekOffset, setWeekOffset] = useState(0)
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0)
-  const [selectedWorkType, setSelectedWorkType] = useState<WorkType>("لافصو مهدي")
-  const [attendance, setAttendance] = useState<Record<string, Record<string, AttendanceStatus>>>({})
+  const [selectedDayIndex, setSelectedDayIndex] = useState(Math.min(getCurrentDayIndex(), 5))
+  const [selectedWorkType, setSelectedWorkType] = useState<WorkType>(WorkType.LAFSOW_MAHDI)
+  const [workers, setWorkers] = useState<Worker[]>([])
+  const [attendance, setAttendance] = useState<Record<string, Record<string, AttendanceType>>>({})
+  const [loading, setLoading] = useState(false)
 
   const weekDates = getWeekDates(weekOffset)
   const selectedDate = weekDates[selectedDayIndex]
@@ -126,7 +124,47 @@ export function AttendanceMarking() {
   today.setHours(0, 0, 0, 0)
   const isToday = selectedDate.getTime() === today.getTime()
 
-  const filteredWorkers = workers.filter((worker) => worker.workType === selectedWorkType && worker.active)
+  // Load workers and attendance data for the entire week
+  useEffect(() => {
+    loadWorkersAndAttendance()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWorkType, weekOffset])
+
+  const loadWorkersAndAttendance = async () => {
+    setLoading(true)
+    try {
+      // Load workers
+      const workersResult = await getWorkersByWorkType(selectedWorkType)
+      if (workersResult.success) {
+        setWorkers(workersResult.workers || [])
+      }
+
+      // Load attendance for ALL days in the current week
+      const attendanceMap: Record<string, Record<string, AttendanceType>> = {}
+
+      // Fetch attendance for each day of the week
+      const attendancePromises = weekDates.map(date => getAttendanceByDate(date))
+      const attendanceResults = await Promise.all(attendancePromises)
+
+      attendanceResults.forEach((result) => {
+        if (result.success && result.attendance) {
+          result.attendance.forEach((record: any) => {
+            const dateKey = record.date.toISOString().split('T')[0]
+            if (!attendanceMap[record.workerId]) {
+              attendanceMap[record.workerId] = {}
+            }
+            attendanceMap[record.workerId][dateKey] = record.type
+          })
+        }
+      })
+
+      setAttendance(attendanceMap)
+    } catch (error) {
+      console.error("Error loading data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getDateKey = (date: Date): string => {
     return date.toISOString().split("T")[0]
@@ -162,22 +200,29 @@ export function AttendanceMarking() {
     setSelectedDayIndex(Math.min(dayIndex, 5))
   }
 
-  const handleAttendanceChange = (workerId: string, status: AttendanceStatus) => {
-    const dateKey = getDateKey(selectedDate)
-    setAttendance((prev) => ({
-      ...prev,
-      [workerId]: {
-        ...prev[workerId],
-        [dateKey]: status,
-      },
-    }))
+  const handleAttendanceChange = async (workerId: string, type: AttendanceType) => {
+    try {
+      const result = await markAttendance(workerId, selectedDate, type)
+      if (result.success) {
+        const dateKey = getDateKey(selectedDate)
+        setAttendance((prev) => ({
+          ...prev,
+          [workerId]: {
+            ...prev[workerId],
+            [dateKey]: type,
+          },
+        }))
+      }
+    } catch (error) {
+      console.error("Error updating attendance:", error)
+    }
   }
 
-  const getAttendanceStatus = (workerId: string, date: Date): AttendanceStatus => {
-    const dateKey = getDateKey(date)
-    return attendance[workerId]?.[dateKey] || "notRecorded"
-  }
-
+ const getAttendanceStatus = (workerId: string, date: Date): AttendanceStatus => {
+  const dateKey = getDateKey(date)
+  const status = attendance[workerId]?.[dateKey]
+  return status || "notRecorded" // This will handle both undefined and null values
+}
   return (
     <div className="space-y-3 md:space-y-4">
       {/* Week Navigation */}
@@ -212,10 +257,12 @@ export function AttendanceMarking() {
             </div>
 
             {!isCurrentWeek && (
-              <Button variant="secondary" onClick={goToCurrentWeek} className="w-full text-xs md:text-sm h-7 md:h-8">
-                <Calendar className="ml-1.5 h-3 w-3 md:h-3.5 md:w-3.5" />
-                الذهاب إلى الأسبوع الحالي
-              </Button>
+              <div className="flex items-center justify-center">
+                <Button variant="secondary" onClick={goToCurrentWeek} className="w-fit text-xs md:text-sm h-7 md:h-8">
+                  <Calendar className="ml-1.5 h-3 w-3 md:h-3.5 md:w-3.5" />
+                  الذهاب إلى الأسبوع الحالي
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>
@@ -251,10 +298,12 @@ export function AttendanceMarking() {
             </div>
 
             {!isToday && (
-              <Button variant="secondary" onClick={goToToday} className="w-full text-xs md:text-sm h-7 md:h-8">
-                <Calendar className="ml-1.5 h-3 w-3 md:h-3.5 md:w-3.5" />
-                الذهاب إلى اليوم
-              </Button>
+              <div className="flex items-center justify-center">
+                <Button variant="secondary" onClick={goToToday} className="w-fit text-xs md:text-sm h-7 md:h-8">
+                  <Calendar className="ml-1.5 h-3 w-3 md:h-3.5 md:w-3.5" />
+                  الذهاب إلى اليوم
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>
@@ -263,35 +312,27 @@ export function AttendanceMarking() {
       {/* Tabs to switch between work types */}
       <Tabs value={selectedWorkType} onValueChange={(value) => setSelectedWorkType(value as WorkType)}>
         <TabsList className="grid w-full grid-cols-2 h-8 md:h-9">
-          <TabsTrigger value="لافصو مهدي" className="text-xs md:text-sm py-1 md:py-1.5">
+          <TabsTrigger value={WorkType.LAFSOW_MAHDI} className="text-xs md:text-sm py-1 md:py-1.5">
             لافصو مهدي
           </TabsTrigger>
-          <TabsTrigger value="الفصالة" className="text-xs md:text-sm py-1 md:py-1.5">
+          <TabsTrigger value={WorkType.ALFASALA} className="text-xs md:text-sm py-1 md:py-1.5">
             الفصالة
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="لافصو مهدي" className="mt-3 md:mt-4">
-          <AttendanceContent
-            workers={filteredWorkers}
-            selectedDate={selectedDate}
-            attendance={attendance}
-            onAttendanceChange={handleAttendanceChange}
-            getAttendanceStatus={getAttendanceStatus}
-            weekDates={weekDates}
-          />
-        </TabsContent>
-
-        <TabsContent value="الفصالة" className="mt-3 md:mt-4">
-          <AttendanceContent
-            workers={filteredWorkers}
-            selectedDate={selectedDate}
-            attendance={attendance}
-            onAttendanceChange={handleAttendanceChange}
-            getAttendanceStatus={getAttendanceStatus}
-            weekDates={weekDates}
-          />
-        </TabsContent>
+        {[WorkType.LAFSOW_MAHDI, WorkType.ALFASALA].map((workType) => (
+          <TabsContent key={workType} value={workType} className="mt-3 md:mt-4">
+            <AttendanceContent
+              workers={workers.filter(worker => worker.workType === workType)}
+              selectedDate={selectedDate}
+              attendance={attendance}
+              onAttendanceChange={handleAttendanceChange}
+              getAttendanceStatus={getAttendanceStatus}
+              weekDates={weekDates}
+              loading={loading}
+            />
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   )
@@ -304,13 +345,15 @@ function AttendanceContent({
   onAttendanceChange,
   getAttendanceStatus,
   weekDates,
+  loading,
 }: {
-  workers: typeof workers
+  workers: Worker[]
   selectedDate: Date
-  attendance: Record<string, Record<string, AttendanceStatus>>
-  onAttendanceChange: (workerId: string, status: AttendanceStatus) => void
+  attendance: Record<string, Record<string, AttendanceType>>
+  onAttendanceChange: (workerId: string, status: AttendanceType) => void
   getAttendanceStatus: (workerId: string, date: Date) => AttendanceStatus
   weekDates: Date[]
+  loading: boolean
 }) {
   return (
     <div className="space-y-3 md:space-y-4">
@@ -328,7 +371,11 @@ function AttendanceContent({
             <h3 className="text-base md:text-xl font-bold">تسجيل الحضور - اليوم</h3>
           </div>
 
-          {workers.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">جاري التحميل...</p>
+            </div>
+          ) : workers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <p className="text-sm md:text-base">لا يوجد عمال في هذا القسم</p>
             </div>
@@ -336,18 +383,19 @@ function AttendanceContent({
             <div className="grid gap-2.5 md:gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {workers.map((worker) => {
                 const status = getAttendanceStatus(worker.id, selectedDate)
-                const todayPayment = calculatePayment(worker.dailyRate, status)
+                const dailyRate = calculateDailyRate(worker.weeklyPayment)
+                const todayPayment = calculatePayment(dailyRate, status)
 
                 return (
                   <Card key={worker.id} className="overflow-hidden">
                     <CardContent className="p-3 md:p-4">
                       <div className="flex items-start justify-between mb-2.5 md:mb-3 gap-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-sm md:text-lg font-bold mb-0.5 break-words">{worker.name}</h4>
-                          <p className="text-xs md:text-sm text-muted-foreground">{toLatinNumbers(worker.id)}</p>
+                          <h4 className="text-sm md:text-lg font-bold mb-0.5 break-words">{worker.fullName}</h4>
+                          <p className="text-xs md:text-sm text-muted-foreground">{toLatinNumbers(worker.id.slice(-4))}</p>
                         </div>
                         <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-muted flex items-center justify-center text-base md:text-lg font-bold flex-shrink-0">
-                          {worker.name.charAt(0)}
+                          {worker.fullName.charAt(0)}
                         </div>
                       </div>
 
@@ -355,7 +403,7 @@ function AttendanceContent({
                         <div className="flex justify-between items-center gap-2">
                           <span className="text-xs md:text-sm text-primary">الأجر اليومي</span>
                           <span className="text-xs md:text-base font-bold text-primary">
-                            {toLatinNumbers(worker.dailyRate.toFixed(3))} د.م.
+                            {toLatinNumbers(dailyRate.toFixed(3))} د.م.
                           </span>
                         </div>
                         <div className="flex justify-between items-center gap-2">
@@ -368,46 +416,47 @@ function AttendanceContent({
 
                       {status !== "notRecorded" && (
                         <div
-                          className={`text-center py-1 md:py-1.5 px-2 md:px-3 rounded-lg mb-2.5 md:mb-3 text-xs md:text-sm font-medium ${
-                            status === "absent"
+                          className={`text-center py-1 md:py-1.5 px-2 md:px-3 rounded-lg mb-2.5 md:mb-3 text-xs md:text-sm font-medium ${status === "ABSENCE"
                               ? "bg-red-100 text-red-700"
-                              : status === "half"
+                              : status === "HALF_DAY"
                                 ? "bg-yellow-100 text-yellow-700"
-                                : "bg-green-100 text-green-700"
-                          }`}
+                                : status === "DAY_AND_NIGHT"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-green-100 text-green-700"
+                            }`}
                         >
-                          {status === "full" && "يوم كامل"}
-                          {status === "half" && "نصف يوم"}
-                          {status === "oneAndHalf" && "يوم ونصف"}
-                          {status === "absent" && "غائب"}
+                          {status === "FULL_DAY" && "يوم كامل"}
+                          {status === "HALF_DAY" && "نصف يوم"}
+                          {status === "DAY_AND_NIGHT" && "يوم ونصف"}
+                          {status === "ABSENCE" && "غائب"}
                         </div>
                       )}
 
                       <div className="grid grid-cols-2 gap-1.5 md:gap-2">
                         <Button
-                          variant={status === "full" ? "default" : "outline"}
-                          onClick={() => onAttendanceChange(worker.id, "full")}
+                          variant={status === "FULL_DAY" ? "default" : "outline"}
+                          onClick={() => onAttendanceChange(worker.id, "FULL_DAY")}
                           className="text-xs md:text-sm h-8 md:h-9"
                         >
                           يوم كامل
                         </Button>
                         <Button
-                          variant={status === "half" ? "default" : "outline"}
-                          onClick={() => onAttendanceChange(worker.id, "half")}
+                          variant={status === "HALF_DAY" ? "default" : "outline"}
+                          onClick={() => onAttendanceChange(worker.id, "HALF_DAY")}
                           className="text-xs md:text-sm h-8 md:h-9"
                         >
                           نصف يوم
                         </Button>
                         <Button
-                          variant={status === "oneAndHalf" ? "default" : "outline"}
-                          onClick={() => onAttendanceChange(worker.id, "oneAndHalf")}
+                          variant={status === "DAY_AND_NIGHT" ? "default" : "outline"}
+                          onClick={() => onAttendanceChange(worker.id, "DAY_AND_NIGHT")}
                           className="text-xs md:text-sm h-8 md:h-9"
                         >
                           يوم ونصف
                         </Button>
                         <Button
-                          variant={status === "absent" ? "destructive" : "outline"}
-                          onClick={() => onAttendanceChange(worker.id, "absent")}
+                          variant={status === "ABSENCE" ? "destructive" : "outline"}
+                          onClick={() => onAttendanceChange(worker.id, "ABSENCE")}
                           className="text-xs md:text-sm h-8 md:h-9"
                         >
                           غائب
@@ -426,7 +475,7 @@ function AttendanceContent({
       <Card>
         <CardContent className="p-3 md:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 md:gap-3 mb-3 md:mb-4">
-            <h3 className="text-base md:text-xl font-bold">التقرير الأسبوعي - الأسبوع الحالي</h3>
+            <h3 className="text-base md:text-xl font-bold">التقرير الأسبوعي</h3>
             <svg
               className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0"
               fill="none"
@@ -447,7 +496,11 @@ function AttendanceContent({
             عمل)
           </p>
 
-          {workers.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">جاري التحميل...</p>
+            </div>
+          ) : workers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <p className="text-sm md:text-base">لا يوجد عمال في هذا القسم</p>
             </div>
@@ -479,9 +532,11 @@ function AttendanceContent({
                   <tbody>
                     {workers.map((worker) => {
                       let weeklyTotal = 0
+                      const dailyRate = calculateDailyRate(worker.weeklyPayment)
+
                       weekDates.forEach((date) => {
                         const status = getAttendanceStatus(worker.id, date)
-                        weeklyTotal += calculatePayment(worker.dailyRate, status)
+                        weeklyTotal += calculatePayment(dailyRate, status)
                       })
 
                       return (
@@ -500,22 +555,22 @@ function AttendanceContent({
                                     لم يسجل
                                   </span>
                                 )}
-                                {status === "full" && (
+                                {status === "FULL_DAY" && (
                                   <span className="inline-block px-1.5 md:px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] md:text-xs font-medium whitespace-nowrap">
                                     يوم كامل
                                   </span>
                                 )}
-                                {status === "half" && (
+                                {status === "HALF_DAY" && (
                                   <span className="inline-block px-1.5 md:px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] md:text-xs font-medium whitespace-nowrap">
                                     نصف يوم
                                   </span>
                                 )}
-                                {status === "oneAndHalf" && (
+                                {status === "DAY_AND_NIGHT" && (
                                   <span className="inline-block px-1.5 md:px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] md:text-xs font-medium whitespace-nowrap">
                                     يوم ونصف
                                   </span>
                                 )}
-                                {status === "absent" && (
+                                {status === "ABSENCE" && (
                                   <span className="inline-block px-1.5 md:px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] md:text-xs font-medium whitespace-nowrap">
                                     غائب
                                   </span>
@@ -525,7 +580,7 @@ function AttendanceContent({
                           })}
                           <td className="p-1.5 md:p-3 sticky right-0 bg-card">
                             <div className="font-bold text-xs md:text-base break-words max-w-[100px] md:max-w-none">
-                              {worker.name}
+                              {worker.fullName}
                             </div>
                           </td>
                         </tr>

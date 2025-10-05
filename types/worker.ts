@@ -1,8 +1,8 @@
-import { Worker, Attendance, Payment } from "@prisma/client"
+import { Worker, WeeklyAttendance, Payment } from "@prisma/client"
 import { mapWorkTypeToFrontend } from "@/lib/utils/worker-utils"
 
 export type WorkerWithRelations = Worker & {
-  attendances: Attendance[]
+  attendances: WeeklyAttendance[]
   payments: Payment[]
 }
 

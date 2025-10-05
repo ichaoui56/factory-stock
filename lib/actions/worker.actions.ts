@@ -17,6 +17,61 @@ function getWeekNumber(date: Date): { weekNumber: string; year: number } {
   }
 }
 
+// Helper function to calculate balance for a single worker
+// In your server actions, update the calculateWorkerBalance function:
+
+// Helper function to calculate balance for a single worker
+function calculateWorkerBalance(worker: any) {
+  const dailyRate = worker.weeklyPayment / 6
+
+  let totalEarned = 0
+  if (worker.attendances) {
+    worker.attendances.forEach((attendance: any) => {
+      const days = [
+        attendance.monday,
+        attendance.tuesday,
+        attendance.wednesday,
+        attendance.thursday,
+        attendance.friday,
+        attendance.saturday,
+      ]
+      days.forEach((dayType) => {
+        // Skip unrecorded days (null or undefined)
+        if (dayType === null || dayType === undefined) {
+          return
+        }
+        
+        switch (dayType) {
+          case "FULL_DAY":
+            totalEarned += dailyRate
+            break
+          case "DAY_AND_NIGHT":
+            totalEarned += dailyRate * 1.5
+            break
+          case "HALF_DAY":
+            totalEarned += dailyRate * 0.5
+            break
+          case "ABSENCE":
+            totalEarned += 0
+            break
+        }
+      })
+    })
+  }
+
+  const totalPaid = worker.payments
+    ? worker.payments.reduce((sum: number, payment: any) => sum + payment.amount, 0)
+    : 0
+
+  const balance = totalEarned - totalPaid
+
+  return {
+    totalEarned,
+    totalPaid,
+    balance,
+  }
+}
+
 // ==================== Worker CRUD ====================
 
 export async function getAllWorkers() {
@@ -25,7 +80,7 @@ export async function getAllWorkers() {
       orderBy: { createdAt: "desc" },
       include: {
         attendances: {
-          orderBy: { date: "desc" },
+          orderBy: { createdAt: "desc" },
           take: 10,
         },
         payments: {
@@ -41,13 +96,41 @@ export async function getAllWorkers() {
   }
 }
 
+// ✨ NEW: Get all workers with balances calculated in a single query
+export async function getAllWorkersWithBalances() {
+  try {
+    const workers = await prisma.worker.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        attendances: true,
+        payments: true,
+      },
+    })
+
+    const workersWithBalances = workers.map((worker) => {
+      const balanceData = calculateWorkerBalance(worker)
+      return {
+        ...worker,
+        balance: balanceData.balance,
+        totalEarned: balanceData.totalEarned,
+        totalPaid: balanceData.totalPaid,
+      }
+    })
+
+    return { success: true, data: workersWithBalances }
+  } catch (error) {
+    console.error("Error fetching workers with balances:", error)
+    return { success: false, error: "فشل في جلب بيانات العمال" }
+  }
+}
+
 export async function getWorkerById(id: string) {
   try {
     const worker = await prisma.worker.findUnique({
       where: { id },
       include: {
         attendances: {
-          orderBy: { date: "desc" },
+          orderBy: { createdAt: "desc" },
         },
         payments: {
           orderBy: { createdAt: "desc" },
@@ -70,7 +153,7 @@ export async function createWorker(data: {
   fullName: string
   phoneNumber: string
   weeklyPayment: number
-  workType: "LAFSOW_MAHDI" | "ALFASALA" | "BOTH"
+  workType: "LAFSOW_MAHDI" | "ALFASALA"
 }) {
   try {
     const worker = await prisma.worker.create({
@@ -97,7 +180,7 @@ export async function updateWorker(
     fullName?: string
     phoneNumber?: string
     weeklyPayment?: number
-    workType?: "LAFSOW_MAHDI" | "ALFASALA" | "BOTH"
+    workType?: "LAFSOW_MAHDI" | "ALFASALA"
     isActive?: boolean
   }
 ) {
@@ -140,58 +223,24 @@ export async function deleteWorker(id: string) {
 
 export async function getWorkerBalance(workerId: string) {
   try {
-    // Get all attendances and calculate earned amount
-    const attendances = await prisma.attendance.findMany({
-      where: { workerId },
-      include: {
-        worker: true,
-      },
-    })
-
+    // Get worker with all attendances and payments
     const worker = await prisma.worker.findUnique({
       where: { id: workerId },
+      include: {
+        attendances: true,
+        payments: true,
+      },
     })
 
     if (!worker) {
       return { success: false, error: "العامل غير موجود" }
     }
 
-    const dailyRate = worker.weeklyPayment / 6 // 6 working days per week
-
-    let totalEarned = 0
-    attendances.forEach((attendance) => {
-      switch (attendance.type) {
-        case "FULL_DAY":
-          totalEarned += dailyRate
-          break
-        case "DAY_AND_NIGHT":
-          totalEarned += dailyRate * 1.5
-          break
-        case "HALF_DAY":
-          totalEarned += dailyRate * 0.5
-          break
-        case "ABSENCE":
-          totalEarned += 0
-          break
-      }
-    })
-
-    // Get total paid
-    const payments = await prisma.payment.findMany({
-      where: { workerId },
-    })
-
-    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0)
-
-    const balance = totalEarned - totalPaid
+    const balanceData = calculateWorkerBalance(worker)
 
     return {
       success: true,
-      data: {
-        totalEarned,
-        totalPaid,
-        balance,
-      },
+      data: balanceData,
     }
   } catch (error) {
     console.error("Error calculating worker balance:", error)
@@ -201,48 +250,23 @@ export async function getWorkerBalance(workerId: string) {
 
 // ==================== Attendance ====================
 
+// This function is deprecated - use markAttendance from attendence.actions.ts instead
+// Kept for backward compatibility
 export async function recordAttendance(data: {
   workerId: string
   date: Date
   type: "FULL_DAY" | "DAY_AND_NIGHT" | "HALF_DAY" | "ABSENCE"
 }) {
-  try {
-    const { weekNumber, year } = getWeekNumber(data.date)
-
-    const attendance = await prisma.attendance.create({
-      data: {
-        workerId: data.workerId,
-        date: data.date,
-        type: data.type as AttendanceType,
-        weekNumber,
-        year,
-      },
-    })
-
-    revalidatePath("/workers")
-    revalidatePath(`/workers/${data.workerId}`)
-    revalidatePath("/attendance")
-    
-    return { success: true, data: attendance }
-  } catch (error) {
-    console.error("Error recording attendance:", error)
-    return { success: false, error: "فشل في تسجيل الحضور" }
-  }
+  return { success: false, error: "Use markAttendance from attendence.actions.ts" }
 }
 
 export async function getWorkerAttendance(workerId: string, startDate?: Date, endDate?: Date) {
   try {
     const where: any = { workerId }
-    
-    if (startDate || endDate) {
-      where.date = {}
-      if (startDate) where.date.gte = startDate
-      if (endDate) where.date.lte = endDate
-    }
 
-    const attendances = await prisma.attendance.findMany({
+    const attendances = await prisma.weeklyAttendance.findMany({
       where,
-      orderBy: { date: "desc" },
+      orderBy: { createdAt: "desc" },
       include: {
         worker: true,
       },
@@ -309,7 +333,7 @@ export async function getWorkerPayments(workerId: string) {
 
 export async function getWeeklyReport(weekNumber: string, year: number) {
   try {
-    const attendances = await prisma.attendance.findMany({
+    const attendances = await prisma.weeklyAttendance.findMany({
       where: { weekNumber, year },
       include: {
         worker: true,
@@ -332,7 +356,7 @@ export async function getWeeklyReport(weekNumber: string, year: number) {
 
 // ==================== Search and Filter ====================
 
-export async function searchWorkers(query: string, workType?: "LAFSOW_MAHDI" | "ALFASALA" | "BOTH") {
+export async function searchWorkers(query: string, workType?: "LAFSOW_MAHDI" | "ALFASALA") {
   try {
     const where: any = {
       OR: [
@@ -357,7 +381,7 @@ export async function searchWorkers(query: string, workType?: "LAFSOW_MAHDI" | "
   }
 }
 
-export async function getActiveWorkers(workType?: "LAFSOW_MAHDI" | "ALFASALA" | "BOTH") {
+export async function getActiveWorkers(workType?: "LAFSOW_MAHDI" | "ALFASALA") {
   try {
     const where: any = { isActive: true }
     

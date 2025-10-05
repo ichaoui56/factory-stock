@@ -100,7 +100,7 @@ export function RecordPaymentDialog({ workerId, workerName, currentBalance, onPa
                 <span
                   className={`text-lg font-bold ${currentBalance > 0 ? "text-orange-600" : currentBalance < 0 ? "text-red-600" : "text-gray-600"}`}
                 >
-                  {toLatinNumbers(Math.abs(currentBalance).toFixed(2))} ر.س
+                  {toLatinNumbers(Math.abs(currentBalance).toFixed(2))} .د.م
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -110,7 +110,7 @@ export function RecordPaymentDialog({ workerId, workerName, currentBalance, onPa
 
             {/* Amount */}
             <div className="space-y-2">
-              <Label htmlFor="amount">المبلغ (ر.س) *</Label>
+              <Label htmlFor="amount">المبلغ (.د.م) *</Label>
               <Input
                 id="amount"
                 type="number"

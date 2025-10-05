@@ -8,453 +8,534 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Calendar } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Calendar, ChevronLeft, ChevronRight, Search, Users } from "lucide-react"
+import { getWeeklySummary, getAttendanceHistory } from "@/lib/actions/attendence.actions"
+import { calculateDailyRate, calculatePayment } from "@/lib/utils/attendance"
+import { WorkType, AttendanceType } from "@prisma/client"
 
-const workers = [
-  { id: "#1", name: "أحمد محمد علي", dailyRate: 200, workType: "لافصو مهدي" },
-  { id: "#2", name: "فاطمة أحمد حسن", dailyRate: 166.667, workType: "الفصالة" },
-  { id: "#3", name: "محمد سالم القاسمي", dailyRate: 233.333, workType: "لافصو مهدي" },
-]
-
-type AttendanceStatus = "full" | "half" | "oneAndHalf" | "absent"
-
-interface AttendanceRecord {
-  workerId: string
-  workerName: string
-  workType: string
-  date: string
-  status: AttendanceStatus
-  payment: number
-}
-
-interface DayAttendance {
-  date: string
-  records: AttendanceRecord[]
-  totalPayment: number
-  presentCount: number
-  absentCount: number
+interface WeeklyAttendanceData {
+  weekNumber: string
+  year: number
+  workType?: WorkType
+  workers: {
+    workerId: string
+    workerName: string
+    weeklyPayment: number
+    workType: WorkType
+    attendance: {
+      monday: AttendanceType | null
+      tuesday: AttendanceType | null
+      wednesday: AttendanceType | null
+      thursday: AttendanceType | null
+      friday: AttendanceType | null
+      saturday: AttendanceType | null
+    }
+    payments: {
+      monday: number
+      tuesday: number
+      wednesday: number
+      thursday: number
+      friday: number
+      saturday: number
+      weeklyTotal: number
+    }
+    amountToPay: number
+  }[]
+  totalAmount: number
 }
 
 function toLatinNumbers(str: string | number): string {
   const arabicToLatin: Record<string, string> = {
-    "٠": "0",
-    "١": "1",
-    "٢": "2",
-    "٣": "3",
-    "٤": "4",
-    "٥": "5",
-    "٦": "6",
-    "٢": "7",
-    "٨": "8",
-    "٩": "9",
+    "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
+    "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
   }
   return String(str).replace(/[٠-٩]/g, (d) => arabicToLatin[d] || d)
 }
 
-function generateMockHistory(): AttendanceRecord[] {
-  const records: AttendanceRecord[] = []
-  const statuses: AttendanceStatus[] = ["full", "half", "oneAndHalf", "absent"]
+function formatGregorianDate(date: Date) {
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return toLatinNumbers(`${year}/${month}/${day}`)
+}
 
-  // Generate 30 days of history
-  for (let i = 0; i < 30; i++) {
-    const date = new Date()
-    date.setDate(date.getDate() - i)
-
-    workers.forEach((worker) => {
-      const status = statuses[Math.floor(Math.random() * statuses.length)]
-      let payment = 0
-
-      switch (status) {
-        case "full":
-          payment = worker.dailyRate
-          break
-        case "half":
-          payment = worker.dailyRate * 0.5
-          break
-        case "oneAndHalf":
-          payment = worker.dailyRate * 1.5
-          break
-        case "absent":
-          payment = 0
-          break
-      }
-
-      records.push({
-        workerId: worker.id,
-        workerName: worker.name,
-        workType: worker.workType,
-        date: date.toISOString().split("T")[0],
-        status,
-        payment,
-      })
-    })
+function getWeekDates(weekNumber: string, year: number): Date[] {
+  const weekNum = parseInt(weekNumber.replace('W', ''), 10)
+  const firstDayOfYear = new Date(year, 0, 1)
+  const firstDayOfYearDay = firstDayOfYear.getDay()
+  const daysToFirstMonday = firstDayOfYearDay === 0 ? 1 : 8 - firstDayOfYearDay
+  const firstMonday = new Date(firstDayOfYear)
+  firstMonday.setDate(firstDayOfYear.getDate() + (firstDayOfYearDay === 1 ? 0 : daysToFirstMonday))
+  const targetMonday = new Date(firstMonday)
+  targetMonday.setDate(firstMonday.getDate() + (weekNum - 1) * 7)
+  
+  const weekDays = []
+  for (let i = 0; i < 6; i++) {
+    const day = new Date(targetMonday)
+    day.setDate(targetMonday.getDate() + i)
+    weekDays.push(day)
   }
 
-  return records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  return weekDays
 }
 
-function groupByDate(records: AttendanceRecord[]): DayAttendance[] {
-  const grouped = new Map<string, AttendanceRecord[]>()
-
-  records.forEach((record) => {
-    if (!grouped.has(record.date)) {
-      grouped.set(record.date, [])
-    }
-    grouped.get(record.date)!.push(record)
-  })
-
-  return Array.from(grouped.entries())
-    .map(([date, dayRecords]) => ({
-      date,
-      records: dayRecords,
-      totalPayment: dayRecords.reduce((sum, r) => sum + r.payment, 0),
-      presentCount: dayRecords.filter((r) => r.status !== "absent").length,
-      absentCount: dayRecords.filter((r) => r.status === "absent").length,
-    }))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+function getWeekNumber(date: Date): string {
+  const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
+  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
+  const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+  return `W${weekNumber.toString().padStart(2, '0')}`
 }
+
+function getArabicMonth(monthIndex: number): string {
+  const months = [
+    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+  ]
+  return months[monthIndex]
+}
+
+const dayNames = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
 
 export default function AttendanceHistoryPage() {
-  const [records] = useState<AttendanceRecord[]>(generateMockHistory())
-  const [filteredDays, setFilteredDays] = useState<DayAttendance[]>([])
-
+  const [weeklyData, setWeeklyData] = useState<WeeklyAttendanceData[]>([])
+  const [loading, setLoading] = useState(false)
   const [selectedWorkType, setSelectedWorkType] = useState<string>("all")
-  const [selectedStatus, setSelectedStatus] = useState<string>("all")
-  const [startDate, setStartDate] = useState<string>("")
-  const [endDate, setEndDate] = useState<string>("")
   const [searchQuery, setSearchQuery] = useState<string>("")
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState<string>("all")
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest")
+  const [availableWorkTypes, setAvailableWorkTypes] = useState<WorkType[]>([WorkType.LAFSOW_MAHDI, WorkType.ALFASALA])
 
   useEffect(() => {
-    applyFilters()
-  }, [])
+    loadAllWeeksData()
+  }, [selectedWorkType, selectedYear, selectedMonth])
 
-  const applyFilters = () => {
-    let filtered = records
+  const loadAllWeeksData = async () => {
+    setLoading(true)
+    try {
+      const workType = selectedWorkType !== 'all' ? selectedWorkType as WorkType : undefined
+      
+      const result = await getAttendanceHistory({
+        workType,
+        startDate: selectedMonth !== 'all' ? new Date(selectedYear, parseInt(selectedMonth) - 1, 1) : undefined,
+        endDate: selectedMonth !== 'all' ? new Date(selectedYear, parseInt(selectedMonth), 0) : undefined,
+      })
 
-    // Apply filters
-    if (selectedWorkType !== "all") {
-      filtered = filtered.filter((r) => r.workType === selectedWorkType)
+      if (result.success && result.attendance) {
+        const weeklyMap = new Map<string, WeeklyAttendanceData>()
+        
+        result.attendance.forEach((record: any) => {
+          const weekKey = `${record.weekNumber}-${record.year}`
+          
+          if (!weeklyMap.has(weekKey)) {
+            weeklyMap.set(weekKey, {
+              weekNumber: record.weekNumber,
+              year: record.year,
+              workType,
+              workers: [],
+              totalAmount: 0
+            })
+          }
+        })
+
+        const weeksData: WeeklyAttendanceData[] = []
+        for (const [_, weekInfo] of weeklyMap) {
+          const weeklyResult = await getWeeklySummary(weekInfo.weekNumber, weekInfo.year, workType)
+          if (weeklyResult.success && weeklyResult.summary) {
+            weeksData.push(weeklyResult.summary)
+          }
+        }
+
+        weeksData.sort((a, b) => {
+          if (a.year !== b.year) return b.year - a.year
+          return parseInt(b.weekNumber.replace('W', '')) - parseInt(a.weekNumber.replace('W', ''))
+        })
+
+        setWeeklyData(weeksData)
+
+        // Update available work types based on actual data
+        const workTypesInData = new Set<WorkType>()
+        weeksData.forEach(week => {
+          week.workers.forEach(worker => {
+            workTypesInData.add(worker.workType)
+          })
+        })
+        
+        const availableTypes = Array.from(workTypesInData)
+        setAvailableWorkTypes(availableTypes.length > 0 ? availableTypes : [WorkType.LAFSOW_MAHDI, WorkType.ALFASALA])
+        
+      } else {
+        setWeeklyData([])
+        setAvailableWorkTypes([WorkType.LAFSOW_MAHDI, WorkType.ALFASALA])
+      }
+    } catch (error) {
+      console.error("Error loading weekly data:", error)
+      setWeeklyData([])
+      setAvailableWorkTypes([WorkType.LAFSOW_MAHDI, WorkType.ALFASALA])
+    } finally {
+      setLoading(false)
     }
-
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter((r) => r.status === selectedStatus)
-    }
-
-    if (startDate) {
-      filtered = filtered.filter((r) => r.date >= startDate)
-    }
-
-    if (endDate) {
-      filtered = filtered.filter((r) => r.date <= endDate)
-    }
-
-    if (selectedMonth && selectedMonth !== "all") {
-      filtered = filtered.filter((r) => r.date.startsWith(selectedMonth))
-    }
-
-    // Group by date
-    let grouped = groupByDate(filtered)
-
-    // Apply sort order
-    if (sortOrder === "oldest") {
-      grouped = grouped.reverse()
-    }
-
-    setFilteredDays(grouped)
   }
 
-  const resetFilters = () => {
-    setSelectedWorkType("all")
-    setSelectedStatus("all")
-    setStartDate("")
-    setEndDate("")
-    setSearchQuery("")
-    setSelectedMonth("all")
-    setSortOrder("newest")
-    setFilteredDays(groupByDate(records))
-  }
+  const getAttendanceBadge = (type: AttendanceType | null) => {
+    if (type === null || type === undefined) {
+      return (
+        <span className="text-muted-foreground text-xs whitespace-nowrap">لم يسجل</span>
+      )
+    }
 
-  const getStatusBadge = (status: AttendanceStatus) => {
-    switch (status) {
-      case "full":
+    switch (type) {
+      case "FULL_DAY":
         return (
           <Badge className="bg-green-100 text-green-700 border-green-200 text-xs whitespace-nowrap">يوم كامل</Badge>
         )
-      case "half":
+      case "HALF_DAY":
         return (
           <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs whitespace-nowrap">نصف يوم</Badge>
         )
-      case "oneAndHalf":
+      case "DAY_AND_NIGHT":
         return <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs whitespace-nowrap">يوم ونصف</Badge>
-      case "absent":
+      case "ABSENCE":
         return <Badge className="bg-red-100 text-red-700 border-red-200 text-xs whitespace-nowrap">غائب</Badge>
+      default:
+        return (
+          <span className="text-muted-foreground text-xs whitespace-nowrap">لم يسجل</span>
+        )
     }
   }
 
-  const getMonthOptions = () => {
-    const months = []
-    for (let i = 0; i < 6; i++) {
-      const date = new Date()
-      date.setMonth(date.getMonth() - i)
-      const monthStr = date.toISOString().slice(0, 7)
-      months.push({
-        value: monthStr,
-        label: date.toLocaleDateString("ar-EG", { year: "numeric", month: "long" }),
-      })
-    }
-    return months
+  const getWeekRangeText = (weekNumber: string, year: number) => {
+    const weekDates = getWeekDates(weekNumber, year)
+    const monday = weekDates[0]
+    const saturday = weekDates[5]
+    return `الاثنين، ${formatGregorianDate(monday)} - السبت، ${formatGregorianDate(saturday)}`
   }
+
+  const getWorkTypeLabel = (workType: WorkType) => {
+    switch (workType) {
+      case WorkType.LAFSOW_MAHDI:
+        return "لافصو مهدي"
+      case WorkType.ALFASALA:
+        return "الفصالة"
+      default:
+        return workType
+    }
+  }
+
+  // Filter workers based on search query
+  const filteredWeeklyData = weeklyData.map(weekData => ({
+    ...weekData,
+    workers: weekData.workers.filter(worker => 
+      worker.workerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      worker.workerId.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  })).filter(weekData => weekData.workers.length > 0)
+
+  // Generate year options (current year and previous 2 years)
+  const yearOptions = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i)
+
+  // Generate month options
+  const monthOptions = [
+    { value: "all", label: "جميع الأشهر" },
+    { value: "1", label: "يناير" },
+    { value: "2", label: "فبراير" },
+    { value: "3", label: "مارس" },
+    { value: "4", label: "أبريل" },
+    { value: "5", label: "مايو" },
+    { value: "6", label: "يونيو" },
+    { value: "7", label: "يوليو" },
+    { value: "8", label: "أغسطس" },
+    { value: "9", label: "سبتمبر" },
+    { value: "10", label: "أكتوبر" },
+    { value: "11", label: "نوفمبر" },
+    { value: "12", label: "ديسمبر" },
+  ]
+
+  // Get work types that actually have data in the current filtered results
+  const workTypesWithData = Array.from(new Set(
+    filteredWeeklyData.flatMap(week => 
+      week.workers.map(worker => worker.workType)
+    )
+  ))
 
   return (
     <DashboardLayout>
       <div className="space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-balance">سجل الحضور</h1>
-            <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">عرض سجل الحضور اليومي الكامل</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-balance">سجل الحضور الأسبوعي</h1>
+            <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">عرض جميع أسابيع الحضور المسجلة</p>
           </div>
         </div>
 
+        {/* Filters */}
         <Card>
-          <CardHeader className="pb-2 md:pb-3">
+          <CardHeader className="pb-3">
             <CardTitle className="text-base md:text-lg flex items-center gap-2">
-              <Calendar className="h-4 w-4 md:h-5 md:w-5" />
-              الفلاتر المتقدمة
+              <Search className="h-4 w-4 md:h-5 md:w-5" />
+              فلاتر البحث
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-2 md:pt-3">
-            <div className="space-y-3 md:space-y-4">
-              {/* Quick Filters Row */}
-              <div className="grid gap-2 md:gap-3 md:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-1 md:space-y-1.5">
-                  <Label htmlFor="workType" className="text-xs md:text-sm font-medium">
-                    نوع العمل
-                  </Label>
-                  <Select value={selectedWorkType} onValueChange={setSelectedWorkType}>
-                    <SelectTrigger id="workType" className="h-8 md:h-9 text-xs md:text-sm">
-                      <SelectValue placeholder="اختر نوع العمل" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">جميع الأعمال</SelectItem>
-                      <SelectItem value="لافصو مهدي">لافصو مهدي</SelectItem>
-                      <SelectItem value="الفصالة">الفصالة</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1 md:space-y-1.5">
-                  <Label htmlFor="status" className="text-xs md:text-sm font-medium">
-                    حالة الحضور
-                  </Label>
-                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                    <SelectTrigger id="status" className="h-8 md:h-9 text-xs md:text-sm">
-                      <SelectValue placeholder="اختر الحالة" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">جميع الحالات</SelectItem>
-                      <SelectItem value="full">يوم كامل</SelectItem>
-                      <SelectItem value="half">نصف يوم</SelectItem>
-                      <SelectItem value="oneAndHalf">يوم ونصف</SelectItem>
-                      <SelectItem value="absent">غائب</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1 md:space-y-1.5">
-                  <Label htmlFor="month" className="text-xs md:text-sm font-medium">
-                    الشهر
-                  </Label>
-                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger id="month" className="h-8 md:h-9 text-xs md:text-sm">
-                      <SelectValue placeholder="اختر الشهر" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">جميع الأشهر</SelectItem>
-                      {getMonthOptions().map((month) => (
-                        <SelectItem key={month.value} value={month.value}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1 md:space-y-1.5">
-                  <Label htmlFor="sort" className="text-xs md:text-sm font-medium">
-                    الترتيب
-                  </Label>
-                  <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "newest" | "oldest")}>
-                    <SelectTrigger id="sort" className="h-8 md:h-9 text-xs md:text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="newest">الأحدث أولاً</SelectItem>
-                      <SelectItem value="oldest">الأقدم أولاً</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+          <CardContent className="pt-3">
+            <div className="grid gap-3 md:gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="workType" className="text-xs md:text-sm font-medium">
+                  نوع العمل
+                </Label>
+                <Select value={selectedWorkType} onValueChange={setSelectedWorkType}>
+                  <SelectTrigger id="workType" className="h-9 md:h-10 text-xs md:text-sm">
+                    <SelectValue placeholder="اختر نوع العمل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع الأعمال</SelectItem>
+                    {availableWorkTypes.map(workType => (
+                      <SelectItem key={workType} value={workType}>
+                        {getWorkTypeLabel(workType)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Date Range and Search Row */}
-              <div className="grid gap-2 md:gap-3 md:grid-cols-3">
-                <div className="space-y-1 md:space-y-1.5">
-                  <Label htmlFor="search" className="text-xs md:text-sm font-medium">
-                    بحث عن عامل
-                  </Label>
-                  <Input
-                    id="search"
-                    placeholder="اسم العامل أو الرقم..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-8 md:h-9 text-xs md:text-sm"
-                  />
-                </div>
-
-                <div className="space-y-1 md:space-y-1.5">
-                  <Label htmlFor="startDate" className="text-xs md:text-sm font-medium">
-                    من تاريخ
-                  </Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="h-8 md:h-9 text-xs md:text-sm"
-                  />
-                </div>
-
-                <div className="space-y-1 md:space-y-1.5">
-                  <Label htmlFor="endDate" className="text-xs md:text-sm font-medium">
-                    إلى تاريخ
-                  </Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="h-8 md:h-9 text-xs md:text-sm"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="year" className="text-xs md:text-sm font-medium">
+                  السنة
+                </Label>
+                <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+                  <SelectTrigger id="year" className="h-9 md:h-10 text-xs md:text-sm">
+                    <SelectValue placeholder="اختر السنة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map(year => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {toLatinNumbers(year)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-2 md:gap-3 pt-1">
-                <Button onClick={applyFilters} className="flex-1 h-8 md:h-9 text-xs md:text-sm">
-                  تطبيق الفلاتر
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={resetFilters}
-                  className="flex-1 h-8 md:h-9 text-xs md:text-sm bg-transparent"
-                >
-                  إعادة تعيين
-                </Button>
+              <div className="space-y-1.5">
+                <Label htmlFor="month" className="text-xs md:text-sm font-medium">
+                  الشهر
+                </Label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger id="month" className="h-9 md:h-10 text-xs md:text-sm">
+                    <SelectValue placeholder="اختر الشهر" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map(month => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="search" className="text-xs md:text-sm font-medium">
+                  بحث عن عامل
+                </Label>
+                <Input
+                  id="search"
+                  placeholder="اسم العامل أو الرقم..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-9 md:h-10 text-xs md:text-sm"
+                />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="space-y-4">
-          {filteredDays.length === 0 ? (
+        {/* Weekly Attendance Tables */}
+        <div className="space-y-6">
+          {loading ? (
             <Card>
               <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">لا توجد سجلات حضور تطابق الفلاتر المحددة</p>
+                <p className="text-muted-foreground">جاري تحميل بيانات الحضور...</p>
+              </CardContent>
+            </Card>
+          ) : filteredWeeklyData.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground">
+                  {searchQuery || selectedWorkType !== 'all' || selectedMonth !== 'all' 
+                    ? "لا توجد نتائج تطابق البحث" 
+                    : "لا توجد سجلات حضور مسجلة"}
+                </p>
               </CardContent>
             </Card>
           ) : (
-            filteredDays.map((day) => (
-              <Card key={day.date}>
-                <CardHeader className="pb-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-                        <Calendar className="h-5 w-5" />
-                        {toLatinNumbers(
-                          new Date(day.date).toLocaleDateString("ar-EG", {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          }),
-                        )}
-                      </CardTitle>
-                    </div>
-                    <div className="flex gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">الحاضرون:</span>
-                        <Badge className="bg-green-100 text-green-700 border-green-200">
-                          {toLatinNumbers(day.presentCount)}
-                        </Badge>
+            filteredWeeklyData.map((weekData) => {
+              const weekDates = getWeekDates(weekData.weekNumber, weekData.year)
+              
+              return (
+                <div key={`${weekData.weekNumber}-${weekData.year}`} className="space-y-4">
+                  {/* Week Header */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                          <h2 className="text-lg md:text-xl font-bold">
+                            الأسبوع {weekData.weekNumber} - {toLatinNumbers(weekData.year)}
+                          </h2>
+                          <p className="text-muted-foreground text-sm mt-1">
+                            {getWeekRangeText(weekData.weekNumber, weekData.year)} ({toLatinNumbers(6)} أيام عمل)
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">عدد العمال:</span>
+                            <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                              {toLatinNumbers(weekData.workers.length)}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">الإجمالي:</span>
+                            <Badge className="bg-green-100 text-green-700 border-green-200">
+                              {toLatinNumbers(weekData.totalAmount.toFixed(3))} د.م
+                            </Badge>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">الغائبون:</span>
-                        <Badge className="bg-red-100 text-red-700 border-red-200">
-                          {toLatinNumbers(day.absentCount)}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">الإجمالي:</span>
-                        <Badge className="bg-blue-100 text-blue-700 border-blue-200">
-                          {toLatinNumbers(day.totalPayment.toFixed(3))} ر.س
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-lg border overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="text-right p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap">
-                            المبلغ
-                          </th>
-                          <th className="text-center p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap">
-                            الحالة
-                          </th>
-                          <th className="text-right p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap">
-                            نوع العمل
-                          </th>
-                          <th className="text-right p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap">
-                            اسم العامل
-                          </th>
-                          <th className="text-right p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap">
-                            رقم العامل
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {day.records.map((record, index) => (
-                          <tr key={index} className="border-b hover:bg-muted/50">
-                            <td className="p-2 md:p-3 text-xs md:text-sm font-bold text-green-600 whitespace-nowrap">
-                              {toLatinNumbers(record.payment.toFixed(3))} ر.س
-                            </td>
-                            <td className="p-2 md:p-3 text-center">{getStatusBadge(record.status)}</td>
-                            <td className="p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">
-                              <Badge
-                                className={
-                                  record.workType === "لافصو مهدي"
-                                    ? "bg-blue-100 text-blue-700 border-blue-200"
-                                    : "bg-green-100 text-green-700 border-green-200"
-                                }
-                              >
-                                {record.workType}
-                              </Badge>
-                            </td>
-                            <td className="p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">{record.workerName}</td>
-                            <td className="p-2 md:p-3 text-xs md:text-sm font-medium whitespace-nowrap">
-                              {toLatinNumbers(record.workerId)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                    </CardContent>
+                  </Card>
+
+                  {/* Work Type Tabs - Only show tabs for work types that have data */}
+                  <Tabs defaultValue={workTypesWithData[0] || WorkType.LAFSOW_MAHDI} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 h-9 md:h-10">
+                      {workTypesWithData.map((workType) => (
+                        <TabsTrigger key={workType} value={workType} className="text-xs md:text-sm">
+                          {getWorkTypeLabel(workType)}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+
+                    {[WorkType.LAFSOW_MAHDI, WorkType.ALFASALA].map((workType) => {
+                      const workTypeData = weekData.workers.filter(worker => 
+                        worker.workType === workType
+                      )
+
+                      // If no data for this work type, show message
+                      if (workTypeData.length === 0) {
+                        // Only show tab content if this work type is in the available work types
+                        if (!workTypesWithData.includes(workType)) {
+                          return null
+                        }
+                        
+                        return (
+                          <TabsContent key={workType} value={workType} className="mt-4">
+                            <Card>
+                              <CardContent className="p-8 text-center">
+                                <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                                  <Users className="h-12 w-12 opacity-50" />
+                                  <p className="text-lg">لا توجد سجلات حضور</p>
+                                  <p className="text-sm">
+                                    لا توجد سجلات حضور للعمال في قسم {getWorkTypeLabel(workType)} لهذا الأسبوع
+                                  </p>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </TabsContent>
+                        )
+                      }
+
+                      const workTypeTotal = workTypeData.reduce((sum, worker) => sum + worker.amountToPay, 0)
+
+                      return (
+                        <TabsContent key={workType} value={workType} className="mt-4">
+                          <Card>
+                            <CardHeader>
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <CardTitle className="text-lg md:text-xl">
+                                  {getWorkTypeLabel(workType)}
+                                </CardTitle>
+                                <div className="flex items-center gap-4 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">عدد العمال:</span>
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                                      {toLatinNumbers(workTypeData.length)}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">الإجمالي:</span>
+                                    <Badge className="bg-green-100 text-green-700 border-green-200">
+                                      {toLatinNumbers(workTypeTotal.toFixed(3))} د.م
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="overflow-x-auto -mx-4 md:mx-0">
+                                <div className="inline-block min-w-full align-middle">
+                                  <table className="w-full border-collapse">
+                                    <thead>
+                                      <tr className="border-b bg-muted/50">
+                                        <th className="text-right p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap sticky right-0 bg-card z-10">
+                                          إجمالي الأجر
+                                        </th>
+                                        {dayNames.map((day, index) => (
+                                          <th
+                                            key={index}
+                                            className="text-center p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap"
+                                          >
+                                            <div>{day}</div>
+                                            <div className="text-[10px] md:text-xs text-muted-foreground font-normal mt-0.5">
+                                              {toLatinNumbers(weekDates[index].getDate())} {getArabicMonth(weekDates[index].getMonth())}
+                                            </div>
+                                          </th>
+                                        ))}
+                                        <th className="text-right p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap sticky right-0 bg-card z-10">
+                                          العامل
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {workTypeData.map((worker) => (
+                                        <tr key={worker.workerId} className="border-b hover:bg-muted/50">
+                                          <td className="p-2 md:p-3 text-right sticky right-0 bg-card z-10">
+                                            <span className="text-xs md:text-sm font-bold text-green-600 whitespace-nowrap">
+                                              {toLatinNumbers(worker.amountToPay.toFixed(3))} د.م.
+                                            </span>
+                                          </td>
+                                          {[
+                                            worker.attendance.monday,
+                                            worker.attendance.tuesday,
+                                            worker.attendance.wednesday,
+                                            worker.attendance.thursday,
+                                            worker.attendance.friday,
+                                            worker.attendance.saturday,
+                                          ].map((attendance, dayIndex) => (
+                                            <td key={dayIndex} className="text-center p-2 md:p-3">
+                                              {getAttendanceBadge(attendance)}
+                                            </td>
+                                          ))}
+                                          <td className="p-2 md:p-3 sticky right-0 bg-card z-10">
+                                            <div className="font-bold text-xs md:text-sm break-words max-w-[120px] md:max-w-none text-right">
+                                              {worker.workerName}
+                                            </div>
+                                            <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">
+                                              {toLatinNumbers(worker.workerId.slice(-4))}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </TabsContent>
+                      )
+                    })}
+                  </Tabs>
+                </div>
+              )
+            })
           )}
         </div>
       </div>

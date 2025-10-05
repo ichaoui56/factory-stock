@@ -9,11 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { RecordPaymentDialog } from "@/components/record-payment-dialog"
 import { EditWorkerDialog } from "@/components/edit-worker-dialog"
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, Clock } from "lucide-react"
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, Clock, CheckCircle, XCircle, MinusCircle } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { getWorkerById, getWorkerBalance, getWorkerAttendance, getWorkerPayments } from "@/lib/actions/worker.actions"
-import type { Worker, Attendance, Payment, AttendanceType, PaymentType, WorkType } from "@prisma/client"
+import type { Worker, WeeklyAttendance, Payment, AttendanceType, PaymentType, WorkType } from "@prisma/client"
 import { toast } from "sonner"
 
 function toLatinNumbers(str: string | number): string {
@@ -24,13 +24,120 @@ function toLatinNumbers(str: string | number): string {
   return String(str).replace(/[٠-٩]/g, (d) => arabicToLatin[d] || d)
 }
 
-function formatDate(dateString: string | Date): string {
+function formatDate(dateString: string | Date | null | undefined): string {
+  if (!dateString) {
+    return "غير محدد"
+  }
+
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+
+  if (isNaN(date.getTime())) {
+    return "تاريخ غير صالح"
+  }
+
   const months = [
     "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
   ]
   return `${toLatinNumbers(date.getDate())} ${months[date.getMonth()]} ${toLatinNumbers(date.getFullYear())}`
+}
+
+// Convert weekly attendance to daily records for display
+interface DailyAttendance {
+  id: string
+  date: string
+  dayName: string
+  type: AttendanceType
+  earned: number
+  weekNumber: string
+  year: number
+}
+
+// Convert weekly attendance to daily records for display - ONLY show marked days
+interface DailyAttendance {
+  id: string
+  date: string
+  dayName: string
+  type: AttendanceType
+  earned: number
+  weekNumber: string
+  year: number
+}
+
+function convertToDailyAttendance(weeklyAttendances: WeeklyAttendance[], dailyRate: number): DailyAttendance[] {
+  const dailyRecords: DailyAttendance[] = []
+
+  const dayNames = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
+
+  weeklyAttendances.forEach((attendance) => {
+    const days = [
+      { type: attendance.monday, dayName: dayNames[0], field: 'monday' },
+      { type: attendance.tuesday, dayName: dayNames[1], field: 'tuesday' },
+      { type: attendance.wednesday, dayName: dayNames[2], field: 'wednesday' },
+      { type: attendance.thursday, dayName: dayNames[3], field: 'thursday' },
+      { type: attendance.friday, dayName: dayNames[4], field: 'friday' },
+      { type: attendance.saturday, dayName: dayNames[5], field: 'saturday' },
+    ]
+
+    // Create a base date for the week (using Monday of that week)
+    const baseDate = new Date(attendance.createdAt)
+
+    days.forEach((day, index) => {
+      // Skip unrecorded days (null or undefined)
+      if (day.type === null || day.type === undefined) {
+        return
+      }
+
+      let earned = 0
+      switch (day.type) {
+        case "FULL_DAY":
+          earned = dailyRate
+          break
+        case "DAY_AND_NIGHT":
+          earned = dailyRate * 1.5
+          break
+        case "HALF_DAY":
+          earned = dailyRate * 0.5
+          break
+        case "ABSENCE":
+          earned = 0
+          break
+      }
+
+      // Calculate date for this day
+      const dayDate = new Date(baseDate)
+      dayDate.setDate(baseDate.getDate() + index)
+
+      dailyRecords.push({
+        id: `${attendance.id}-${day.field}`,
+        date: dayDate.toISOString(),
+        dayName: day.dayName,
+        type: day.type,
+        earned,
+        weekNumber: attendance.weekNumber,
+        year: attendance.year
+      })
+    })
+  })
+
+  // Sort by date descending (newest first)
+  return dailyRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+}
+
+// Get icon for attendance type
+function getAttendanceIcon(type: AttendanceType) {
+  switch (type) {
+    case "FULL_DAY":
+      return <CheckCircle className="h-4 w-4 text-green-600" />
+    case "DAY_AND_NIGHT":
+      return <CheckCircle className="h-4 w-4 text-blue-600" />
+    case "HALF_DAY":
+      return <MinusCircle className="h-4 w-4 text-yellow-600" />
+    case "ABSENCE":
+      return <XCircle className="h-4 w-4 text-red-600" />
+    default:
+      return <MinusCircle className="h-4 w-4 text-gray-400" />
+  }
 }
 
 export default function WorkerDetailPage() {
@@ -41,58 +148,10 @@ export default function WorkerDetailPage() {
   const [balance, setBalance] = useState(0)
   const [totalEarned, setTotalEarned] = useState(0)
   const [totalPaid, setTotalPaid] = useState(0)
-  const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([])
+  const [attendanceHistory, setAttendanceHistory] = useState<WeeklyAttendance[]>([])
   const [paymentHistory, setPaymentHistory] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return
-      setLoading(true)
-      setError(null)
-
-      try {
-        const workerResult = await getWorkerById(id)
-        if (workerResult.success && workerResult.data) {
-          setWorker(workerResult.data)
-        } else {
-          throw new Error(workerResult.error || "Worker not found")
-        }
-
-        const balanceResult = await getWorkerBalance(id)
-        if (balanceResult.success && balanceResult.data) {
-          setBalance(balanceResult.data.balance)
-          setTotalEarned(balanceResult.data.totalEarned)
-          setTotalPaid(balanceResult.data.totalPaid)
-        } else {
-          toast.error(balanceResult.error || "Failed to fetch balance")
-        }
-
-        const attendanceResult = await getWorkerAttendance(id)
-        if (attendanceResult.success && attendanceResult.data) {
-          setAttendanceHistory(attendanceResult.data)
-        } else {
-          toast.error(attendanceResult.error || "Failed to fetch attendance history")
-        }
-
-        const paymentResult = await getWorkerPayments(id)
-        if (paymentResult.success && paymentResult.data) {
-          setPaymentHistory(paymentResult.data)
-        } else {
-          toast.error(paymentResult.error || "Failed to fetch payment history")
-        }
-
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An unknown error occurred")
-        toast.error(err instanceof Error ? err.message : "An unknown error occurred")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [id])
 
   const fetchData = async () => {
     if (!id) return
@@ -116,18 +175,18 @@ export default function WorkerDetailPage() {
         toast.error(balanceResult.error || "Failed to fetch balance")
       }
 
-      const attendanceResult = await getWorkerAttendance(id);
+      const attendanceResult = await getWorkerAttendance(id)
       if (attendanceResult.success && attendanceResult.data) {
-        setAttendanceHistory(attendanceResult.data);
+        setAttendanceHistory(attendanceResult.data)
       } else {
-        toast.error(attendanceResult.error || "Failed to fetch attendance history");
+        toast.error(attendanceResult.error || "Failed to fetch attendance history")
       }
 
-      const paymentResult = await getWorkerPayments(id);
+      const paymentResult = await getWorkerPayments(id)
       if (paymentResult.success && paymentResult.data) {
-        setPaymentHistory(paymentResult.data);
+        setPaymentHistory(paymentResult.data)
       } else {
-        toast.error(paymentResult.error || "Failed to fetch payment history");
+        toast.error(paymentResult.error || "Failed to fetch payment history")
       }
 
     } catch (err) {
@@ -146,7 +205,6 @@ export default function WorkerDetailPage() {
     switch (workType) {
       case "LAFSOW_MAHDI": return "لافصو مهدي"
       case "ALFASALA": return "الفصالة"
-      case "BOTH": return "كلاهما"
       default: return workType
     }
   }
@@ -158,6 +216,16 @@ export default function WorkerDetailPage() {
       case "DAY_AND_NIGHT": return "يوم ونصف"
       case "ABSENCE": return "غائب"
       default: return status
+    }
+  }
+
+  const getAttendanceBadgeVariant = (status: AttendanceType) => {
+    switch (status) {
+      case "FULL_DAY": return "default"
+      case "HALF_DAY": return "secondary"
+      case "DAY_AND_NIGHT": return "default"
+      case "ABSENCE": return "destructive"
+      default: return "outline"
     }
   }
 
@@ -174,7 +242,7 @@ export default function WorkerDetailPage() {
     return (
       <DashboardLayout>
         <div className="text-center py-12 flex items-center justify-center">
-           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </DashboardLayout>
     )
@@ -194,10 +262,28 @@ export default function WorkerDetailPage() {
   }
 
   if (!worker) {
-    return null; // Should be handled by the error state
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <h1 className="text-2xl font-bold mb-4">العامل غير موجود</h1>
+          <Link href="/workers">
+            <Button>العودة إلى قائمة العمال</Button>
+          </Link>
+        </div>
+      </DashboardLayout>
+    )
   }
-  
-  const dailyRate = worker.weeklyPayment / 6;
+
+  const dailyRate = worker.weeklyPayment / 6
+  const dailyAttendance = convertToDailyAttendance(attendanceHistory, dailyRate)
+
+  // Calculate attendance statistics
+  // Calculate attendance statistics - ONLY for marked days
+  const markedAttendance = dailyAttendance.filter(day => day.type !== null && day.type !== undefined)
+  const totalDays = markedAttendance.length
+  const presentDays = markedAttendance.filter(day => day.type !== "ABSENCE").length
+  const absenceDays = markedAttendance.filter(day => day.type === "ABSENCE").length
+  const attendanceRate = totalDays > 0 ? (presentDays / totalDays) * 100 : 0
 
   return (
     <DashboardLayout>
@@ -228,7 +314,7 @@ export default function WorkerDetailPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">إجمالي المستحق</p>
-                  <p className="text-2xl font-bold text-primary">{toLatinNumbers(totalEarned.toFixed(2))} ر.س</p>
+                  <p className="text-2xl font-bold text-primary">{toLatinNumbers(totalEarned.toFixed(2))} .د.م</p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <TrendingUp className="h-6 w-6 text-primary" />
@@ -242,7 +328,7 @@ export default function WorkerDetailPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">إجمالي المدفوع</p>
-                  <p className="text-2xl font-bold text-green-600">{toLatinNumbers(totalPaid.toFixed(2))} ر.س</p>
+                  <p className="text-2xl font-bold text-green-600">{toLatinNumbers(totalPaid.toFixed(2))} .د.م</p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
                   <DollarSign className="h-6 w-6 text-green-600" />
@@ -259,7 +345,7 @@ export default function WorkerDetailPage() {
                   <p
                     className={`text-2xl font-bold ${balance > 0 ? "text-orange-600" : balance < 0 ? "text-red-600" : "text-gray-600"}`}
                   >
-                    {toLatinNumbers(Math.abs(balance).toFixed(2))} ر.س
+                    {toLatinNumbers(Math.abs(balance).toFixed(2))} .د.م
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {balance > 0 ? "مستحق للعامل" : balance < 0 ? "مدفوع زيادة" : "متوازن"}
@@ -281,7 +367,7 @@ export default function WorkerDetailPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">الأجر اليومي</p>
-                  <p className="text-2xl font-bold">{toLatinNumbers(dailyRate.toFixed(2))} ر.س</p>
+                  <p className="text-2xl font-bold">{toLatinNumbers(dailyRate.toFixed(2))} .د.م</p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center">
                   <Calendar className="h-6 w-6 text-blue-600" />
@@ -305,9 +391,9 @@ export default function WorkerDetailPage() {
                   className={
                     worker.workType === "LAFSOW_MAHDI"
                       ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                      : worker.workType === "ALFASALA" 
-                      ? "bg-green-500/10 text-green-600 border-green-500/20"
-                      : "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                      : worker.workType === "ALFASALA"
+                        ? "bg-green-500/10 text-green-600 border-green-500/20"
+                        : "bg-purple-500/10 text-purple-600 border-purple-500/20"
                   }
                 >
                   {getWorkTypeLabel(worker.workType)}
@@ -328,11 +414,19 @@ export default function WorkerDetailPage() {
               </div>
               <div className="flex justify-between items-center py-2 border-b">
                 <span className="text-muted-foreground">الراتب الأسبوعي</span>
-                <span className="font-bold">{toLatinNumbers(worker.weeklyPayment)} ر.س</span>
+                <span className="font-bold">{toLatinNumbers(worker.weeklyPayment.toFixed(2))} .د.م</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-muted-foreground">رقم الهاتف</span>
+                <span className="font-bold">{toLatinNumbers(worker.phoneNumber)}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b">
                 <span className="text-muted-foreground">تاريخ الانضمام</span>
                 <span className="font-bold">{formatDate(worker.createdAt)}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-muted-foreground">آخر تحديث</span>
+                <span className="font-bold">{formatDate(worker.updatedAt)}</span>
               </div>
             </div>
           </CardContent>
@@ -341,57 +435,92 @@ export default function WorkerDetailPage() {
         {/* History Tabs */}
         <Tabs defaultValue="attendance" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="attendance">سجل الحضور</TabsTrigger>
+            <TabsTrigger value="attendance">سجل الحضور اليومي</TabsTrigger>
             <TabsTrigger value="payments">سجل المدفوعات</TabsTrigger>
           </TabsList>
 
           <TabsContent value="attendance" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>سجل الحضور اليومي</CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle>سجل الحضور اليومي</CardTitle>
+                  <div className="flex gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span>أيام كاملة: {markedAttendance.filter(d => d.type === "FULL_DAY").length}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4 text-blue-600" />
+                      <span>يوم ونصف: {markedAttendance.filter(d => d.type === "DAY_AND_NIGHT").length}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MinusCircle className="h-4 w-4 text-yellow-600" />
+                      <span>أنصاف أيام: {markedAttendance.filter(d => d.type === "HALF_DAY").length}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <XCircle className="h-4 w-4 text-red-600" />
+                      <span>غياب: {absenceDays}</span>
+                    </div>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="rounded-lg border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="text-right">الحالة</TableHead>
                         <TableHead className="text-right">الأجر المستحق</TableHead>
-                        <TableHead className="text-right">الحضور</TableHead>
+                        <TableHead className="text-right">اليوم</TableHead>
                         <TableHead className="text-right">التاريخ</TableHead>
+                        <TableHead className="text-right">الأسبوع</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {attendanceHistory.map((record) => {
-                        let earned = 0;
-                        switch (record.type) {
-                          case "FULL_DAY": earned = dailyRate; break;
-                          case "DAY_AND_NIGHT": earned = dailyRate * 1.5; break;
-                          case "HALF_DAY": earned = dailyRate * 0.5; break;
-                          case "ABSENCE": earned = 0; break;
-                        }
-                        return (
-                          <TableRow key={record.id}>
-                            <TableCell className="font-bold text-primary">
-                              {toLatinNumbers(earned.toFixed(2))} ر.س
-                            </TableCell>
+                      {markedAttendance.length > 0 ? (
+                        markedAttendance.map((record) => (
+                          <TableRow key={record.id} className="hover:bg-muted/50">
                             <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  record.type === "ABSENCE"
-                                    ? "bg-red-100 text-red-700 border-red-200"
-                                    : record.type === "HALF_DAY"
-                                      ? "bg-yellow-100 text-yellow-700 border-yellow-200"
-                                      : "bg-green-100 text-green-700 border-green-200"
-                                }
-                              >
-                                {getAttendanceStatusLabel(record.type)}
-                              </Badge>
+                              <div className="flex items-center justify-end gap-2">
+                                <Badge
+                                  variant={getAttendanceBadgeVariant(record.type)}
+                                  className="flex items-center gap-1 min-w-[100px] justify-center"
+                                >
+                                  {getAttendanceIcon(record.type)}
+                                  {getAttendanceStatusLabel(record.type)}
+                                </Badge>
+                              </div>
                             </TableCell>
-                            <TableCell className="font-medium">{formatDate(record.date)}</TableCell>
+                            <TableCell className="font-bold text-primary text-lg">
+                              {toLatinNumbers(record.earned.toFixed(2))} .د.م
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div className="text-right">
+                                <div className="font-semibold">{record.dayName}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center justify-end gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                {formatDate(record.date)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              الأسبوع {record.weekNumber} - {record.year}
+                            </TableCell>
                           </TableRow>
-                        )
-                      })}
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-12">
+                            <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                              <Calendar className="h-12 w-12 opacity-50" />
+                              <p className="text-lg">لا توجد سجلات حضور</p>
+                              <p className="text-sm">سيظهر سجل الحضور هنا عند تسجيل الحضور</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -412,38 +541,62 @@ export default function WorkerDetailPage() {
                         <TableHead className="text-right">ملاحظات</TableHead>
                         <TableHead className="text-right">النوع</TableHead>
                         <TableHead className="text-right">المبلغ</TableHead>
+                        <TableHead className="text-right">الأسبوع</TableHead>
                         <TableHead className="text-right">التاريخ</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {paymentHistory.map((payment) => (
-                        <TableRow key={payment.id}>
-                          <TableCell className="text-muted-foreground">{payment.note || "-"}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                payment.paymentType === "WEEKLY"
-                                  ? "bg-blue-100 text-blue-700 border-blue-200"
-                                  : payment.paymentType === "DAILY"
-                                    ? "bg-green-100 text-green-700 border-green-200"
-                                    : "bg-purple-100 text-purple-700 border-purple-200"
-                              }
-                            >
-                              {getPaymentTypeLabel(payment.paymentType)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-bold text-green-600 text-lg">
-                            {toLatinNumbers(payment.amount.toFixed(2))} ر.س
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              {formatDate(payment.createdAt)}
+                      {paymentHistory.length > 0 ? (
+                        paymentHistory.map((payment) => (
+                          <TableRow key={payment.id}>
+                            <TableCell className="text-muted-foreground">
+                              {payment.note ? (
+                                <div className="max-w-[200px] truncate" title={payment.note}>
+                                  {payment.note}
+                                </div>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  payment.paymentType === "WEEKLY"
+                                    ? "bg-blue-100 text-blue-700 border-blue-200"
+                                    : payment.paymentType === "DAILY"
+                                      ? "bg-green-100 text-green-700 border-green-200"
+                                      : "bg-purple-100 text-purple-700 border-purple-200"
+                                }
+                              >
+                                {getPaymentTypeLabel(payment.paymentType)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-bold text-green-600 text-lg">
+                              {toLatinNumbers(payment.amount.toFixed(2))} .د.م
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              الأسبوع {payment.weekNumber} - {payment.year}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2 justify-end">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                {formatDate(payment.createdAt)}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-12">
+                            <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                              <DollarSign className="h-12 w-12 opacity-50" />
+                              <p className="text-lg">لا توجد سجلات مدفوعات</p>
+                              <p className="text-sm">سيظهر سجل المدفوعات هنا عند تسجيل الدفعات</p>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </div>

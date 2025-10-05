@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { EditWorkerDialog } from "@/components/edit-worker-dialog"
 import Link from "next/link"
-import { getAllWorkers, getWorkerBalance } from "@/lib/actions/worker.actions"
+import { getAllWorkersWithBalances } from "@/lib/actions/worker.actions"
 import { Worker, WorkType } from "@prisma/client"
 import { mapWorkTypeToDatabase } from "@/lib/utils/worker-utils"
 import { toast } from "sonner"
@@ -42,22 +42,14 @@ export function WorkersTable({ workTypeFilter }: { workTypeFilter?: string }) {
     loadWorkers()
   }, [])
 
+  // In WorkersTable component, change this:
   const loadWorkers = async () => {
     setLoading(true)
     try {
-      const result = await getAllWorkers()
+      // ✅ Use the new optimized function
+      const result = await getAllWorkersWithBalances()
       if (result.success && result.data) {
-        // Load balance for each worker
-        const workersWithBalances = await Promise.all(
-          result.data.map(async (worker) => {
-            const balanceResult = await getWorkerBalance(worker.id)
-            return {
-              ...worker,
-              balance: balanceResult.success ? balanceResult.data?.balance || 0 : 0,
-            }
-          })
-        )
-        setWorkers(workersWithBalances)
+        setWorkers(result.data)
       } else {
         toast.error(result.error || "فشل في تحميل بيانات العمال")
       }
@@ -69,8 +61,6 @@ export function WorkersTable({ workTypeFilter }: { workTypeFilter?: string }) {
     }
   }
 
-  // Using mapWorkTypeToDatabase from worker-utils
-
   const filteredWorkers = workers.filter((worker) => {
     const matchesSearch =
       worker.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -80,7 +70,14 @@ export function WorkersTable({ workTypeFilter }: { workTypeFilter?: string }) {
     let matchesWorkType = true
     if (workTypeFilter) {
       const dbWorkType = mapWorkTypeToDatabase(workTypeFilter)
-      matchesWorkType = worker.workType === dbWorkType
+
+      if (dbWorkType === "LAFSOW_MAHDI") {
+        matchesWorkType = worker.workType === "LAFSOW_MAHDI"
+      } else if (dbWorkType === "ALFASALA") {
+        matchesWorkType = worker.workType === "ALFASALA"
+      } else {
+        matchesWorkType = worker.workType === dbWorkType
+      }
     }
 
     return matchesSearch && matchesWorkType
@@ -92,8 +89,6 @@ export function WorkersTable({ workTypeFilter }: { workTypeFilter?: string }) {
         return "لافصو مهدي"
       case "ALFASALA":
         return "الفصالة"
-      case "BOTH":
-        return "كلاهما"
       default:
         return "لافصو مهدي"
     }

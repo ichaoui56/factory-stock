@@ -59,7 +59,7 @@ export function EditWorkerDialog({ worker, onWorkerUpdated }: EditWorkerDialogPr
         fullName: formData.fullName,
         phoneNumber: formData.phoneNumber,
         weeklyPayment: parseFloat(formData.weeklyPayment),
-        workType: mapWorkTypeToDatabase(formData.workType) as "LAFSOW_MAHDI" | "ALFASALA" | "BOTH",
+        workType: mapWorkTypeToDatabase(formData.workType) as "LAFSOW_MAHDI" | "ALFASALA",
         isActive: formData.isActive,
       })
 
@@ -117,7 +117,7 @@ export function EditWorkerDialog({ worker, onWorkerUpdated }: EditWorkerDialogPr
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="weeklyPayment">الراتب الأسبوعي (ر.س)</Label>
+              <Label htmlFor="weeklyPayment">الراتب الأسبوعي (.د.م)</Label>
               <Input
                 id="weeklyPayment"
                 type="number"
@@ -144,7 +144,6 @@ export function EditWorkerDialog({ worker, onWorkerUpdated }: EditWorkerDialogPr
                 <SelectContent>
                   <SelectItem value="lafso-mahdi">لافصو مهدي</SelectItem>
                   <SelectItem value="al-fasala">الفصالة</SelectItem>
-                  <SelectItem value="both">كلاهما</SelectItem>
                 </SelectContent>
               </Select>
             </div>

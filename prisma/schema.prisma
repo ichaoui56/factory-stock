@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // or "mysql", "sqlite", etc.
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -23,9 +23,8 @@ model User {
 
 // أنواع العمل
 enum WorkType {
-  LAFSOW_MAHDI      // لافصو مهدي
-  ALFASALA          // الفصالة
-  BOTH              // كلاهما
+  LAFSOW_MAHDI
+  ALFASALA
 }
 
 // العامل
@@ -39,8 +38,7 @@ model Worker {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   
-  // العلاقات
-  attendances    Attendance[]
+  attendances    WeeklyAttendance[]
   payments       Payment[]
 
   @@map("workers")
@@ -54,29 +52,38 @@ enum AttendanceType {
   ABSENCE
 }
 
-// سجل الحضور
-model Attendance {
-  id         String         @id @default(cuid())
+// سجل الحضور الأسبوعي
+model WeeklyAttendance {
+  id         String          @id @default(cuid())
   workerId   String
-  date       DateTime       @db.Date
-  type       AttendanceType
   weekNumber String         // مثل: "W01", "W52"
   year       Int
-  createdAt  DateTime       @default(now())
   
-  // العلاقات
+  // الحضور لكل يوم من أيام الأسبوع (الاثنين - السبت)
+  // Allow null values for days that haven't been recorded
+  monday     AttendanceType?  // Changed to optional
+  tuesday    AttendanceType?  // Changed to optional
+  wednesday  AttendanceType?  // Changed to optional
+  thursday   AttendanceType?  // Changed to optional
+  friday     AttendanceType?  // Changed to optional
+  saturday   AttendanceType?  // Changed to optional
+  
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  
   worker     Worker         @relation(fields: [workerId], references: [id], onDelete: Cascade)
 
+  @@unique([workerId, weekNumber, year])
   @@index([workerId])
   @@index([weekNumber, year])
-  @@map("attendances")
+  @@map("weekly_attendances")
 }
 
 // أنواع الدفع
 enum PaymentType {
-  DAILY       // دفعة يومية
-  WEEKLY      // دفعة أسبوعية
-  PARTIAL     // دفعة جزئية
+  DAILY
+  WEEKLY
+  PARTIAL
 }
 
 // دفعات العمال
@@ -85,12 +92,11 @@ model Payment {
   workerId      String
   amount        Float
   paymentType   PaymentType
-  weekNumber    String        // مثل: "W01", "W52"
+  weekNumber    String
   year          Int
   note          String?
   createdAt     DateTime      @default(now())
   
-  // العلاقات
   worker        Worker        @relation(fields: [workerId], references: [id], onDelete: Cascade)
 
   @@index([workerId])
@@ -107,7 +113,6 @@ model Client {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   
-  // العلاقات
   transactions    Transaction[]
   clientPayments  ClientPayment[]
 
@@ -123,7 +128,6 @@ model Transaction {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   
-  // العلاقات
   client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
@@ -140,7 +144,6 @@ model ClientPayment {
   date          DateTime      @default(now())
   createdAt     DateTime      @default(now())
   
-  // العلاقات
   client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])

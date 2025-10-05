@@ -6,8 +6,6 @@ export function mapWorkTypeToFrontend(workType: WorkType): string {
       return "lafso-mahdi"
     case "ALFASALA":
       return "al-fasala"
-    case "BOTH":
-      return "both"
     default:
       return "lafso-mahdi"
   }
@@ -19,8 +17,6 @@ export function mapWorkTypeToDatabase(workType: string): WorkType {
       return "LAFSOW_MAHDI"
     case "al-fasala":
       return "ALFASALA"
-    case "both":
-      return "BOTH"
     default:
       return "LAFSOW_MAHDI"
   }

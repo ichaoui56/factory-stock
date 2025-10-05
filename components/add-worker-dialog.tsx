@@ -41,7 +41,7 @@ export function AddWorkerDialog({ onWorkerAdded }: AddWorkerDialogProps) {
         fullName: formData.fullName,
         phoneNumber: formData.phoneNumber,
         weeklyPayment: parseFloat(formData.weeklyPayment),
-        workType: formData.workType as "LAFSOW_MAHDI" | "ALFASALA" | "BOTH",
+        workType: formData.workType as "LAFSOW_MAHDI" | "ALFASALA",
       })
 
       if (result.success) {
@@ -111,7 +111,6 @@ export function AddWorkerDialog({ onWorkerAdded }: AddWorkerDialogProps) {
                 <SelectContent>
                   <SelectItem value="LAFSOW_MAHDI">لافصو مهدي</SelectItem>
                   <SelectItem value="ALFASALA">الفصالة</SelectItem>
-                  <SelectItem value="BOTH">كلاهما</SelectItem>
                 </SelectContent>
               </Select>
             </div>
