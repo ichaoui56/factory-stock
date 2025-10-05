@@ -9,12 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { RecordPaymentDialog } from "@/components/record-payment-dialog"
 import { EditWorkerDialog } from "@/components/edit-worker-dialog"
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, Clock, CheckCircle, XCircle, MinusCircle } from "lucide-react"
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, Clock, CheckCircle, XCircle, MinusCircle, ArrowUp, ArrowDown, Check } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { getWorkerById, getWorkerBalance, getWorkerAttendance, getWorkerPayments } from "@/lib/actions/worker.actions"
 import type { Worker, WeeklyAttendance, Payment, AttendanceType, PaymentType, WorkType } from "@prisma/client"
 import { toast } from "sonner"
+import { EditPaymentDialog } from "@/components/EditPaymentDialog"
 
 function toLatinNumbers(str: string | number): string {
   const arabicToLatin: Record<string, string> = {
@@ -340,23 +341,47 @@ export default function WorkerDetailPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">الرصيد</p>
-                  <p
-                    className={`text-2xl font-bold ${balance > 0 ? "text-orange-600" : balance < 0 ? "text-red-600" : "text-gray-600"}`}
-                  >
+                <div className="flex-1">
+                  {/* Status Indicator */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={`
+            h-2 w-2 rounded-full
+            ${balance > 0 ? 'bg-orange-500' : balance < 0 ? 'bg-green-500' : 'bg-gray-400'}
+          `} />
+                    <span className={`
+            text-sm font-medium
+            ${balance > 0 ? 'text-orange-600' : balance < 0 ? 'text-green-600' : 'text-gray-600'}
+          `}>
+                      {balance > 0 ? 'مستحق' : balance < 0 ? 'زيادة دفع' : 'متوازن'}
+                    </span>
+                  </div>
+
+                  {/* Amount */}
+                  <p className={`
+          text-2xl md:text-3xl font-bold mb-1
+          ${balance > 0 ? 'text-orange-600' : balance < 0 ? 'text-green-600' : 'text-gray-600'}
+        `}>
                     {toLatinNumbers(Math.abs(balance).toFixed(2))} .د.م
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {balance > 0 ? "مستحق للعامل" : balance < 0 ? "مدفوع زيادة" : "متوازن"}
+
+                  {/* Description */}
+                  <p className="text-xs text-muted-foreground">
+                    {balance > 0 ? 'مبلغ مستحق للعامل' : balance < 0 ? 'مبلغ مدفوع زيادة' : 'لا يوجد رصيد'}
                   </p>
                 </div>
-                <div
-                  className={`h-12 w-12 rounded-full flex items-center justify-center ${balance > 0 ? "bg-orange-500/10" : balance < 0 ? "bg-red-500/10" : "bg-gray-500/10"}`}
-                >
-                  <TrendingDown
-                    className={`h-6 w-6 ${balance > 0 ? "text-orange-600" : balance < 0 ? "text-red-600" : "text-gray-600"}`}
-                  />
+
+                {/* Visual Icon */}
+                <div className={`
+        h-12 w-12 rounded-lg flex items-center justify-center
+        ${balance > 0 ? 'bg-orange-500/10' : balance < 0 ? 'bg-green-500/10' : 'bg-gray-500/10'}
+      `}>
+                  {balance > 0 ? (
+                    <ArrowUp className="h-5 w-5 text-orange-600" />
+                  ) : balance < 0 ? (
+                    <ArrowDown className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <Check className="h-5 w-5 text-gray-400" />
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -538,6 +563,7 @@ export default function WorkerDetailPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="text-right">الإجراءات</TableHead>
                         <TableHead className="text-right">ملاحظات</TableHead>
                         <TableHead className="text-right">النوع</TableHead>
                         <TableHead className="text-right">المبلغ</TableHead>
@@ -549,6 +575,13 @@ export default function WorkerDetailPage() {
                       {paymentHistory.length > 0 ? (
                         paymentHistory.map((payment) => (
                           <TableRow key={payment.id}>
+                            <TableCell>
+                              <EditPaymentDialog
+                                payment={payment}
+                                workerName={worker.fullName}
+                                onPaymentUpdated={fetchData}
+                              />
+                            </TableCell>
                             <TableCell className="text-muted-foreground">
                               {payment.note ? (
                                 <div className="max-w-[200px] truncate" title={payment.note}>
@@ -588,7 +621,7 @@ export default function WorkerDetailPage() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-12">
+                          <TableCell colSpan={6} className="text-center py-12">
                             <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                               <DollarSign className="h-12 w-12 opacity-50" />
                               <p className="text-lg">لا توجد سجلات مدفوعات</p>

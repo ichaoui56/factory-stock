@@ -1,3 +1,4 @@
+// components/edit-client-dialog.tsx
 "use client"
 
 import type React from "react"
@@ -14,32 +15,78 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { updateClient, deleteClient } from "@/lib/actions/client.actions"
+import { toast } from "sonner"
 
 interface Client {
   id: string
   name: string
-  location: string
-  contact: string
+  city: string
+  phoneNumber: string
+  balance?: number
+  totalSales?: number
+  totalPayments?: number
+  createdAt?: Date
+  updatedAt?: Date
 }
-
 interface EditClientDialogProps {
   client: Client
-  onUpdate?: (client: Client) => void
+  onUpdate?: () => void
 }
 
 export function EditClientDialog({ client, onUpdate }: EditClientDialogProps) {
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: client.name,
-    location: client.location,
-    contact: client.contact,
+    city: client.city,
+    phoneNumber: client.phoneNumber,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Updated client:", { ...client, ...formData })
-    onUpdate?.({ ...client, ...formData })
-    setOpen(false)
+    setLoading(true)
+
+    try {
+      const result = await updateClient(client.id, formData)
+      
+      if (result.success) {
+        toast.success("تم تحديث بيانات العميل بنجاح")
+        setOpen(false)
+        onUpdate?.()
+      } else {
+        toast.error(result.error || "فشل في تحديث بيانات العميل")
+      }
+    } catch (error) {
+      console.error("Error updating client:", error)
+      toast.error("حدث خطأ أثناء تحديث بيانات العميل")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm("هل أنت متأكد من حذف هذا العميل؟ سيتم حذف جميع المعاملات والدفعات المرتبطة به.")) {
+      return
+    }
+
+    setDeleteLoading(true)
+    try {
+      const result = await deleteClient(client.id)
+      if (result.success) {
+        toast.success("تم حذف العميل بنجاح")
+        setOpen(false)
+        onUpdate?.()
+      } else {
+        toast.error(result.error || "فشل في حذف العميل")
+      }
+    } catch (error) {
+      console.error("Error deleting client:", error)
+      toast.error("حدث خطأ أثناء حذف العميل")
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   return (
@@ -69,36 +116,63 @@ export function EditClientDialog({ client, onUpdate }: EditClientDialogProps) {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
+              disabled={loading || deleteLoading}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-location">الموقع / المكان</Label>
+            <Label htmlFor="edit-city">المدينة</Label>
             <Input
-              id="edit-location"
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              id="edit-city"
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
               required
+              disabled={loading || deleteLoading}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-contact">رقم الهاتف</Label>
+            <Label htmlFor="edit-phoneNumber">رقم الهاتف</Label>
             <Input
-              id="edit-contact"
+              id="edit-phoneNumber"
               type="tel"
               dir="ltr"
-              value={formData.contact}
-              onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+              value={formData.phoneNumber}
+              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
               required
+              disabled={loading || deleteLoading}
             />
           </div>
 
-          <div className="flex gap-3 justify-end">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              إلغاء
+          <div className="flex flex-col gap-3 pt-4">
+            <div className="flex gap-3">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setOpen(false)}
+                className="flex-1"
+                disabled={loading || deleteLoading}
+              >
+                إلغاء
+              </Button>
+              <Button 
+                type="submit" 
+                className="flex-1"
+                disabled={loading || deleteLoading}
+              >
+                {loading ? "جاري التحديث..." : "حفظ التغييرات"}
+              </Button>
+            </div>
+            
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={loading || deleteLoading}
+              className="w-full"
+            >
+              {deleteLoading ? "جاري الحذف..." : "حذف العميل"}
             </Button>
-            <Button type="submit">حفظ التغييرات</Button>
           </div>
         </form>
       </DialogContent>

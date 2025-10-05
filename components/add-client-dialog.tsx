@@ -1,3 +1,4 @@
+// components/add-client-dialog.tsx
 "use client"
 
 import type React from "react"
@@ -15,22 +16,44 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { createClient } from "@/lib/actions/client.actions"
+import { toast } from "sonner"
 
-export function AddClientDialog() {
+interface AddClientDialogProps {
+  onClientAdded?: () => void
+}
+
+export function AddClientDialog({ onClientAdded }: AddClientDialogProps) {
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
-    location: "",
-    contact: "",
+    city: "",
+    phoneNumber: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Here you would typically send the data to your backend
-    console.log("New client data:", formData)
-    // Reset form and close dialog
-    setFormData({ name: "", location: "", contact: "" })
-    setOpen(false)
+    setLoading(true)
+
+    try {
+      const result = await createClient(formData)
+      
+      if (result.success) {
+        toast.success("تم إضافة العميل بنجاح")
+        setFormData({ name: "", city: "", phoneNumber: "" })
+        setOpen(false)
+        // Call the refresh callback
+        onClientAdded?.()
+      } else {
+        toast.error(result.error || "فشل في إضافة العميل")
+      }
+    } catch (error) {
+      console.error("Error creating client:", error)
+      toast.error("حدث خطأ أثناء إضافة العميل")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -68,43 +91,52 @@ export function AddClientDialog() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
                 className="text-sm md:text-base"
+                disabled={loading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="location" className="text-sm md:text-base">
-                الموقع / المكان <span className="text-destructive">*</span>
+              <Label htmlFor="city" className="text-sm md:text-base">
+                المدينة <span className="text-destructive">*</span>
               </Label>
               <Input
-                id="location"
-                placeholder="أدخل موقع العميل"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                id="city"
+                placeholder="أدخل مدينة العميل"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                 required
                 className="text-sm md:text-base"
+                disabled={loading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contact" className="text-sm md:text-base">
+              <Label htmlFor="phoneNumber" className="text-sm md:text-base">
                 رقم الهاتف <span className="text-destructive">*</span>
               </Label>
               <Input
-                id="contact"
+                id="phoneNumber"
                 type="tel"
                 dir="ltr"
                 placeholder="01012345678"
-                value={formData.contact}
-                onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                 required
                 className="text-sm md:text-base"
+                disabled={loading}
               />
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="min-h-[44px]">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setOpen(false)} 
+              className="min-h-[44px]"
+              disabled={loading}
+            >
               إلغاء
             </Button>
-            <Button type="submit" className="min-h-[44px]">
-              حفظ العميل
+            <Button type="submit" className="min-h-[44px]" disabled={loading}>
+              {loading ? "جاري الإضافة..." : "حفظ العميل"}
             </Button>
           </DialogFooter>
         </form>

@@ -123,8 +123,11 @@ model Client {
 model Transaction {
   id          String   @id @default(cuid())
   clientId    String
-  amount      Float
-  description String
+  productName String   // اسم المنتج
+  unitPrice   Float    // سعر الوحدة
+  quantity    Int      // الكمية
+  totalAmount Float    // المبلغ الإجمالي (يتم حسابه: unitPrice * quantity)
+  note        String?  // ملاحظات (اختياري)
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   

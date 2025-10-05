@@ -40,7 +40,7 @@ function calculateWorkerBalance(worker: any) {
         if (dayType === null || dayType === undefined) {
           return
         }
-        
+
         switch (dayType) {
           case "FULL_DAY":
             totalEarned += dailyRate
@@ -137,11 +137,11 @@ export async function getWorkerById(id: string) {
         },
       },
     })
-    
+
     if (!worker) {
       return { success: false, error: "العامل غير موجود" }
     }
-    
+
     return { success: true, data: worker }
   } catch (error) {
     console.error("Error fetching worker:", error)
@@ -165,7 +165,7 @@ export async function createWorker(data: {
         isActive: true,
       },
     })
-    
+
     revalidatePath("/workers")
     return { success: true, data: worker }
   } catch (error) {
@@ -195,7 +195,7 @@ export async function updateWorker(
         ...(data.isActive !== undefined && { isActive: data.isActive }),
       },
     })
-    
+
     revalidatePath("/workers")
     revalidatePath(`/workers/${id}`)
     return { success: true, data: worker }
@@ -210,7 +210,7 @@ export async function deleteWorker(id: string) {
     await prisma.worker.delete({
       where: { id },
     })
-    
+
     revalidatePath("/workers")
     return { success: true }
   } catch (error) {
@@ -291,6 +291,15 @@ export async function recordPayment(data: {
     const now = new Date()
     const { weekNumber, year } = getWeekNumber(now)
 
+    // Validate worker exists
+    const worker = await prisma.worker.findUnique({
+      where: { id: data.workerId }
+    })
+
+    if (!worker) {
+      return { success: false, error: "العامل غير موجود" }
+    }
+
     const payment = await prisma.payment.create({
       data: {
         workerId: data.workerId,
@@ -304,7 +313,7 @@ export async function recordPayment(data: {
 
     revalidatePath("/workers")
     revalidatePath(`/workers/${data.workerId}`)
-    
+
     return { success: true, data: payment }
   } catch (error) {
     console.error("Error recording payment:", error)
@@ -326,6 +335,70 @@ export async function getWorkerPayments(workerId: string) {
   } catch (error) {
     console.error("Error fetching payments:", error)
     return { success: false, error: "فشل في جلب سجل المدفوعات" }
+  }
+}
+
+// In worker.actions.ts - add these functions
+
+export async function updatePayment(
+  paymentId: string,
+  data: {
+    amount?: number
+    paymentType?: "DAILY" | "WEEKLY" | "PARTIAL"
+    note?: string
+  }
+) {
+  try {
+    // Check if payment exists
+    const existingPayment = await prisma.payment.findUnique({
+      where: { id: paymentId }
+    })
+
+    if (!existingPayment) {
+      return { success: false, error: "الدفعة غير موجودة" }
+    }
+
+    const payment = await prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        ...(data.amount !== undefined && { amount: data.amount }),
+        ...(data.paymentType && { paymentType: data.paymentType as PaymentType }),
+        ...(data.note !== undefined && { note: data.note }),
+      },
+    })
+
+    revalidatePath("/workers")
+    revalidatePath(`/workers/${existingPayment.workerId}`)
+    
+    return { success: true, data: payment }
+  } catch (error) {
+    console.error("Error updating payment:", error)
+    return { success: false, error: "فشل في تحديث الدفعة" }
+  }
+}
+
+export async function deletePayment(paymentId: string) {
+  try {
+    // Get payment info before deletion for revalidation
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId }
+    })
+
+    if (!payment) {
+      return { success: false, error: "الدفعة غير موجودة" }
+    }
+
+    await prisma.payment.delete({
+      where: { id: paymentId },
+    })
+
+    revalidatePath("/workers")
+    revalidatePath(`/workers/${payment.workerId}`)
+    
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting payment:", error)
+    return { success: false, error: "فشل في حذف الدفعة" }
   }
 }
 
@@ -384,7 +457,7 @@ export async function searchWorkers(query: string, workType?: "LAFSOW_MAHDI" | "
 export async function getActiveWorkers(workType?: "LAFSOW_MAHDI" | "ALFASALA") {
   try {
     const where: any = { isActive: true }
-    
+
     if (workType) {
       where.workType = workType
     }

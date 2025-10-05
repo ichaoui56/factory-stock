@@ -1,4 +1,4 @@
-// components/record-payment-dialog.tsx
+// components/edit-payment-dialog.tsx
 "use client"
 
 import { useState } from "react"
@@ -8,24 +8,25 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { DollarSign, Calendar } from "lucide-react"
-import { recordPayment } from "@/lib/actions/worker.actions"
+import { DollarSign, Edit, Calendar } from "lucide-react"
+import { updatePayment, deletePayment } from "@/lib/actions/worker.actions"
 import { toast } from "sonner"
+import type { Payment, PaymentType } from "@prisma/client"
 
-interface RecordPaymentDialogProps {
-  workerId: string
+interface EditPaymentDialogProps {
+  payment: Payment
   workerName: string
-  currentBalance: number
-  onPaymentRecorded: () => void
+  onPaymentUpdated: () => void
 }
 
-export function RecordPaymentDialog({ workerId, workerName, currentBalance, onPaymentRecorded }: RecordPaymentDialogProps) {
+export function EditPaymentDialog({ payment, workerName, onPaymentUpdated }: EditPaymentDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [formData, setFormData] = useState({
-    amount: "",
-    paymentType: "WEEKLY" as "DAILY" | "WEEKLY" | "PARTIAL",
-    note: ""
+    amount: payment.amount.toString(),
+    paymentType: payment.paymentType as "DAILY" | "WEEKLY" | "PARTIAL",
+    note: payment.note || ""
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,33 +39,52 @@ export function RecordPaymentDialog({ workerId, workerName, currentBalance, onPa
 
     setLoading(true)
     try {
-      const result = await recordPayment({
-        workerId,
+      const result = await updatePayment(payment.id, {
         amount: parseFloat(formData.amount),
         paymentType: formData.paymentType,
         note: formData.note
       })
 
       if (result.success) {
-        toast.success("تم تسجيل الدفعة بنجاح")
+        toast.success("تم تحديث الدفعة بنجاح")
         setOpen(false)
-        setFormData({ amount: "", paymentType: "WEEKLY", note: "" })
-        onPaymentRecorded()
+        onPaymentUpdated()
       } else {
-        toast.error(result.error || "فشل في تسجيل الدفعة")
+        toast.error(result.error || "فشل في تحديث الدفعة")
       }
     } catch (error) {
-      console.error("Error recording payment:", error)
-      toast.error("حدث خطأ أثناء تسجيل الدفعة")
+      console.error("Error updating payment:", error)
+      toast.error("حدث خطأ أثناء تحديث الدفعة")
     } finally {
       setLoading(false)
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirm("هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.")) {
+      return
+    }
+
+    setDeleteLoading(true)
+    try {
+      const result = await deletePayment(payment.id)
+      if (result.success) {
+        toast.success("تم حذف الدفعة بنجاح")
+        setOpen(false)
+        onPaymentUpdated()
+      } else {
+        toast.error(result.error || "فشل في حذف الدفعة")
+      }
+    } catch (error) {
+      console.error("Error deleting payment:", error)
+      toast.error("حدث خطأ أثناء حذف الدفعة")
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   const handleAmountChange = (value: string) => {
-    // Allow only numbers and decimal point
     const numericValue = value.replace(/[^\d.]/g, '')
-    // Ensure only one decimal point
     const parts = numericValue.split('.')
     if (parts.length > 2) {
       return
@@ -75,16 +95,16 @@ export function RecordPaymentDialog({ workerId, workerName, currentBalance, onPa
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700 text-white">
-          <DollarSign className="h-4 w-4 ml-2" />
-          تسجيل دفعة
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+          <Edit className="h-3 w-3" />
+          <span className="sr-only">تعديل الدفعة</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-green-600" />
-            تسجيل دفعة جديدة
+            <Edit className="h-5 w-5 text-blue-600" />
+            تعديل الدفعة
           </DialogTitle>
         </DialogHeader>
         
@@ -92,8 +112,9 @@ export function RecordPaymentDialog({ workerId, workerName, currentBalance, onPa
           {/* Worker Info */}
           <div className="bg-muted/50 p-3 rounded-lg">
             <p className="text-sm font-medium">{workerName}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              الرصيد الحالي: {currentBalance.toFixed(2)} د.م
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              الأسبوع {payment.weekNumber} - {payment.year}
             </p>
           </div>
 
@@ -145,22 +166,34 @@ export function RecordPaymentDialog({ workerId, workerName, currentBalance, onPa
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col gap-2 pt-2">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpen(false)}
+                  className="flex-1"
+                  disabled={loading || deleteLoading}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  disabled={loading || deleteLoading}
+                >
+                  {loading ? "جاري التحديث..." : "تحديث الدفعة"}
+                </Button>
+              </div>
+              
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-                className="flex-1"
-                disabled={loading}
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={loading || deleteLoading}
+                className="w-full"
               >
-                إلغاء
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 bg-green-600 hover:bg-green-700"
-                disabled={loading}
-              >
-                {loading ? "جاري التسجيل..." : "تسجيل الدفعة"}
+                {deleteLoading ? "جاري الحذف..." : "حذف الدفعة"}
               </Button>
             </div>
           </form>
