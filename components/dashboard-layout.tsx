@@ -17,6 +17,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { getDashboardCounts } from "@/lib/actions/dashboard.actions"
+
+interface DashboardCounts {
+  workers: number
+  clients: number
+}
 
 const navigation = [
   {
@@ -46,7 +52,6 @@ const navigation = [
         />
       </svg>
     ),
-    badge: "124",
   },
   {
     name: "العملاء",
@@ -58,20 +63,6 @@ const navigation = [
           strokeLinejoin="round"
           strokeWidth={2}
           d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-        />
-      </svg>
-    ),
-  },
-  {
-    name: "التقارير",
-    href: "/reports",
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
         />
       </svg>
     ),
@@ -112,7 +103,7 @@ const generalNav = [
 
 const attendanceNav = [
   {
-    name: "الحضور والغياب",
+    name: "تسجيل الحضور",
     href: "/attendance",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -127,7 +118,7 @@ const attendanceNav = [
   },
   {
     name: "سجل الحضور",
-    href: "/attendance/history",
+    href: "/attendance-history",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
@@ -146,6 +137,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
+  const [counts, setCounts] = useState<DashboardCounts>({ workers: 0, clients: 0 })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const checkAuth = () => {
@@ -171,10 +164,48 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("resize", handleResize)
   }, [router])
 
+  // Fetch counts when component mounts
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const result = await getDashboardCounts()
+        if (result.success && result.data) {
+          // Ensure we only set numbers, default to 0 if undefined
+          const safeCounts: DashboardCounts = {
+            workers: result.data.workers ?? 0,
+            clients: result.data.clients ?? 0
+          }
+          setCounts(safeCounts)
+        } else {
+          // Set default counts if no data
+          setCounts({ workers: 0, clients: 0 })
+        }
+      } catch (error) {
+        console.error("Error fetching counts:", error)
+        setCounts({ workers: 0, clients: 0 })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCounts()
+  }, [])
+
   const handleLogout = () => {
     localStorage.removeItem("isAuthenticated")
     localStorage.removeItem("userRole")
     router.push("/login")
+  }
+
+  // Helper function to get badge for navigation items
+  const getNavBadge = (name: string) => {
+    if (name === "العمال" && counts.workers > 0) {
+      return counts.workers.toString()
+    }
+    if (name === "العملاء" && counts.clients > 0) {
+      return counts.clients.toString()
+    }
+    return null
   }
 
   return (
@@ -226,6 +257,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <div className="space-y-1">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href
+                  const badge = getNavBadge(item.name)
+                  
                   return (
                     <Link
                       key={item.name}
@@ -240,9 +273,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     >
                       {item.icon}
                       <span className="flex-1 text-sm md:text-base">{item.name}</span>
-                      {item.badge && (
-                        <span className="px-1.5 md:px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
-                          {item.badge}
+                      {badge && (
+                        <span className={cn(
+                          "px-1.5 md:px-2 py-0.5 text-xs rounded-full min-w-[20px] text-center",
+                          isActive 
+                            ? "bg-primary-foreground/20 text-primary-foreground" 
+                            : "bg-primary/10 text-primary"
+                        )}>
+                          {loading ? "..." : badge}
                         </span>
                       )}
                     </Link>

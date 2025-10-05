@@ -21,6 +21,7 @@ function getWeekNumber(date: Date): { weekNumber: string; year: number } {
 // In your server actions, update the calculateWorkerBalance function:
 
 // Helper function to calculate balance for a single worker
+// Helper function to calculate balance for a single worker
 function calculateWorkerBalance(worker: any) {
   const dailyRate = worker.weeklyPayment / 6
 
@@ -63,7 +64,9 @@ function calculateWorkerBalance(worker: any) {
     ? worker.payments.reduce((sum: number, payment: any) => sum + payment.amount, 0)
     : 0
 
-  const balance = totalEarned - totalPaid
+  // Fix: Use proper rounding to avoid floating-point precision issues
+  totalEarned = Math.round(totalEarned * 100) / 100
+  const balance = Math.round((totalEarned - totalPaid) * 100) / 100
 
   return {
     totalEarned,
@@ -300,10 +303,13 @@ export async function recordPayment(data: {
       return { success: false, error: "العامل غير موجود" }
     }
 
+    // Fix: Round the amount to 2 decimal places to avoid floating-point issues
+    const roundedAmount = Math.round(data.amount * 100) / 100
+
     const payment = await prisma.payment.create({
       data: {
         workerId: data.workerId,
-        amount: data.amount,
+        amount: roundedAmount,
         paymentType: data.paymentType as PaymentType,
         weekNumber,
         year,
@@ -358,13 +364,21 @@ export async function updatePayment(
       return { success: false, error: "الدفعة غير موجودة" }
     }
 
+    // Fix: Round the amount to 2 decimal places
+    const updateData: any = {}
+    if (data.amount !== undefined) {
+      updateData.amount = Math.round(data.amount * 100) / 100
+    }
+    if (data.paymentType) {
+      updateData.paymentType = data.paymentType as PaymentType
+    }
+    if (data.note !== undefined) {
+      updateData.note = data.note
+    }
+
     const payment = await prisma.payment.update({
       where: { id: paymentId },
-      data: {
-        ...(data.amount !== undefined && { amount: data.amount }),
-        ...(data.paymentType && { paymentType: data.paymentType as PaymentType }),
-        ...(data.note !== undefined && { note: data.note }),
-      },
+      data: updateData,
     })
 
     revalidatePath("/workers")
@@ -471,5 +485,18 @@ export async function getActiveWorkers(workType?: "LAFSOW_MAHDI" | "ALFASALA") {
   } catch (error) {
     console.error("Error fetching active workers:", error)
     return { success: false, error: "فشل في جلب العمال النشطين" }
+  }
+}
+
+// Add this function to get workers count
+export async function getWorkersCount() {
+  try {
+    const count = await prisma.worker.count({
+      where: { isActive: true }
+    })
+    return { success: true, data: count }
+  } catch (error) {
+    console.error("Error fetching workers count:", error)
+    return { success: false, error: "فشل في جلب عدد العمال" }
   }
 }

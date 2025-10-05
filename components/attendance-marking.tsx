@@ -34,12 +34,13 @@ interface Worker {
 type AttendanceStatus = "FULL_DAY" | "HALF_DAY" | "DAY_AND_NIGHT" | "ABSENCE" | "notRecorded"
 
 export function AttendanceMarking() {
-  // Calculate initial day index based on current day
+  // Calculate initial day index based on current day - REVERSED
   const getCurrentDayIndex = () => {
     const today = new Date()
     const currentDay = today.getDay()
-    // Convert Sunday (0) to Saturday index (5), and Monday-Saturday (1-6) to (0-5)
-    return currentDay === 0 ? 5 : currentDay - 1
+    // Convert Sunday (0) to index 0, Monday (1) to index 1, ..., Saturday (6) to index 5
+    // But reversed: Saturday becomes index 0, Friday index 1, ..., Monday index 5
+    return currentDay === 0 ? 0 : 6 - currentDay
   }
 
   const [weekOffset, setWeekOffset] = useState(0)
@@ -50,7 +51,9 @@ export function AttendanceMarking() {
   const [loading, setLoading] = useState(false)
 
   const weekDates = getWeekDates(weekOffset)
-  const selectedDate = weekDates[selectedDayIndex]
+  // Reverse the week dates so Monday is on the right
+  const reversedWeekDates = [...weekDates].reverse()
+  const selectedDate = reversedWeekDates[selectedDayIndex]
 
   const isCurrentWeek = weekOffset === 0
   const today = new Date()
@@ -75,8 +78,8 @@ export function AttendanceMarking() {
       // Load attendance for ALL days in the current week
       const attendanceMap: Record<string, Record<string, AttendanceType>> = {}
 
-      // Fetch attendance for each day of the week
-      const attendancePromises = weekDates.map(date => getAttendanceByDate(date))
+      // Fetch attendance for each day of the week (using reversed dates)
+      const attendancePromises = reversedWeekDates.map(date => getAttendanceByDate(date))
       const attendanceResults = await Promise.all(attendancePromises)
 
       attendanceResults.forEach((result) => {
@@ -129,7 +132,7 @@ export function AttendanceMarking() {
     setWeekOffset(0)
     const today = new Date()
     const currentDay = today.getDay()
-    const dayIndex = currentDay === 0 ? 5 : currentDay - 1
+    const dayIndex = currentDay === 0 ? 0 : 6 - currentDay
     setSelectedDayIndex(Math.min(dayIndex, 5))
   }
 
@@ -176,7 +179,7 @@ export function AttendanceMarking() {
               <div className="text-center flex-1 min-w-0">
                 <h2 className="text-sm md:text-lg font-bold mb-0.5">{isCurrentWeek ? "الأسبوع الحالي" : "الأسبوع"}</h2>
                 <p className="text-muted-foreground text-[10px] md:text-xs break-words">
-                  الاثنين، {formatDateForDisplay(weekDates[0])} - السبت، {formatDateForDisplay(weekDates[5])} (6 أيام عمل)
+                  السبت، {formatDateForDisplay(reversedWeekDates[0])} - الاثنين، {formatDateForDisplay(reversedWeekDates[5])} (6 أيام عمل)
                 </p>
               </div>
 
@@ -262,7 +265,7 @@ export function AttendanceMarking() {
               attendance={attendance}
               onAttendanceChange={handleAttendanceChange}
               getAttendanceStatus={getAttendanceStatus}
-              weekDates={weekDates}
+              weekDates={reversedWeekDates}
               loading={loading}
             />
           </TabsContent>
@@ -289,6 +292,9 @@ function AttendanceContent({
   weekDates: Date[]
   loading: boolean
 }) {
+  // Reverse the day names for display
+  const reversedDayNames = [...dayNames].reverse()
+
   return (
     <div className="space-y-3 md:space-y-4">
       {/* Daily Attendance Marking */}
@@ -447,7 +453,7 @@ function AttendanceContent({
                       <th className="text-right p-1.5 md:p-3 font-bold text-xs md:text-base whitespace-nowrap">
                         إجمالي الأجر
                       </th>
-                      {dayNames.map((day, index) => (
+                      {reversedDayNames.map((day, index) => (
                         <th
                           key={index}
                           className="text-center p-1.5 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap"

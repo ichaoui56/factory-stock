@@ -314,7 +314,7 @@ export default function WorkerDetailPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">إجمالي المستحق</p>
+                  <p className="text-sm text-muted-foreground mb-1"> شحال خاصو يتخلص </p>
                   <p className="text-2xl font-bold text-primary">{toLatinNumbers(totalEarned.toFixed(2))} .د.م</p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -328,7 +328,7 @@ export default function WorkerDetailPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">إجمالي المدفوع</p>
+                  <p className="text-sm text-muted-foreground mb-1"> شحال تخلص </p>
                   <p className="text-2xl font-bold text-green-600">{toLatinNumbers(totalPaid.toFixed(2))} .د.م</p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -346,39 +346,45 @@ export default function WorkerDetailPage() {
                   <div className="flex items-center gap-2 mb-3">
                     <div className={`
             h-2 w-2 rounded-full
-            ${balance > 0 ? 'bg-orange-500' : balance < 0 ? 'bg-green-500' : 'bg-gray-400'}
+            ${Math.abs(balance) > 0.01 ? (balance > 0 ? 'bg-orange-500' : 'bg-green-500') : 'bg-gray-400'}
           `} />
                     <span className={`
             text-sm font-medium
-            ${balance > 0 ? 'text-orange-600' : balance < 0 ? 'text-green-600' : 'text-gray-600'}
+            ${Math.abs(balance) > 0.01 ? (balance > 0 ? 'text-orange-600' : 'text-green-600') : 'text-gray-600'}
           `}>
-                      {balance > 0 ? 'مستحق' : balance < 0 ? 'زيادة دفع' : 'متوازن'}
+                      {Math.abs(balance) > 0.01 ?
+                        (balance > 0 ? 'كيتسال' : 'زايدو في لخلاص ') :
+                        'مخلص في كلشي '}
                     </span>
                   </div>
 
                   {/* Amount */}
                   <p className={`
           text-2xl md:text-3xl font-bold mb-1
-          ${balance > 0 ? 'text-orange-600' : balance < 0 ? 'text-green-600' : 'text-gray-600'}
+          ${Math.abs(balance) > 0.01 ? (balance > 0 ? 'text-orange-600' : 'text-green-600') : 'text-gray-600'}
         `}>
                     {toLatinNumbers(Math.abs(balance).toFixed(2))} .د.م
                   </p>
 
                   {/* Description */}
                   <p className="text-xs text-muted-foreground">
-                    {balance > 0 ? 'مبلغ مستحق للعامل' : balance < 0 ? 'مبلغ مدفوع زيادة' : 'لا يوجد رصيد'}
+                    {Math.abs(balance) > 0.01 ?
+                      (balance > 0 ? 'مبلغ مستحق للعامل' : 'مبلغ مدفوع زيادة') :
+                      'لا يوجد رصيد'}
                   </p>
                 </div>
 
                 {/* Visual Icon */}
                 <div className={`
         h-12 w-12 rounded-lg flex items-center justify-center
-        ${balance > 0 ? 'bg-orange-500/10' : balance < 0 ? 'bg-green-500/10' : 'bg-gray-500/10'}
+        ${Math.abs(balance) > 0.01 ? (balance > 0 ? 'bg-orange-500/10' : 'bg-green-500/10') : 'bg-gray-500/10'}
       `}>
-                  {balance > 0 ? (
-                    <ArrowUp className="h-5 w-5 text-orange-600" />
-                  ) : balance < 0 ? (
-                    <ArrowDown className="h-5 w-5 text-green-600" />
+                  {Math.abs(balance) > 0.01 ? (
+                    balance > 0 ? (
+                      <ArrowUp className="h-5 w-5 text-orange-600" />
+                    ) : (
+                      <ArrowDown className="h-5 w-5 text-green-600" />
+                    )
                   ) : (
                     <Check className="h-5 w-5 text-gray-400" />
                   )}

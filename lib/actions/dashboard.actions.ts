@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/prisma"
 import { getWeekNumber } from "@/lib/utils"
+import { getWorkersCount } from "./worker.actions"
+import { getClientsCount } from "./attendence.actions"
 
 export async function getDashboardStats() {
   try {
@@ -159,7 +161,7 @@ export async function getRecentWorkersWithBalance() {
         payments: true,
       },
       orderBy: { createdAt: 'desc' },
-      take: 5
+      take: 4
     })
 
     const workersWithBalance = workers.map(worker => {
@@ -263,5 +265,29 @@ export async function getTodayProfitBreakdown() {
   } catch (error) {
     console.error("Error getting today's profit breakdown:", error)
     return { success: false, error: "فشل في جلب تفاصيل الأرباح" }
+  }
+}
+
+export async function getDashboardCounts() {
+  try {
+    const [workersResult, clientsResult] = await Promise.all([
+      getWorkersCount(),
+      getClientsCount()
+    ])
+
+    // Ensure we always return numbers, defaulting to 0 if undefined
+    const counts = {
+      workers: workersResult.success ? (workersResult.data || 0) : 0,
+      clients: clientsResult.success ? (clientsResult.data || 0) : 0,
+    }
+
+    return { success: true, data: counts }
+  } catch (error) {
+    console.error("Error fetching dashboard counts:", error)
+    return { 
+      success: false, 
+      error: "فشل في جلب إحصائيات لوحة التحكم",
+      data: { workers: 0, clients: 0 }
+    }
   }
 }

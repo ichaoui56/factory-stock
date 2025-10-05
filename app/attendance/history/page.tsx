@@ -163,9 +163,11 @@ export default function AttendanceHistoryPage() {
 
   const getWeekRangeText = (weekNumber: string, year: number) => {
     const weekDates = getWeekDates(weekNumber, year)
-    const monday = weekDates[0]
-    const saturday = weekDates[5]
-    return `الاثنين، ${formatDateForDisplay(monday)} - السبت، ${formatDateForDisplay(saturday)}`
+    // Reverse the week dates for display
+    const reversedWeekDates = [...weekDates].reverse()
+    const saturday = reversedWeekDates[0]
+    const monday = reversedWeekDates[5]
+    return `السبت، ${formatDateForDisplay(saturday)} - الاثنين، ${formatDateForDisplay(monday)}`
   }
 
   const getWorkTypeLabel = (workType: WorkType) => {
@@ -327,6 +329,10 @@ export default function AttendanceHistoryPage() {
           ) : (
             filteredWeeklyData.map((weekData) => {
               const weekDates = getWeekDates(weekData.weekNumber, weekData.year)
+              // Reverse the week dates for display
+              const reversedWeekDates = [...weekDates].reverse()
+              // Reverse the day names for display
+              const reversedDayNames = [...dayNames].reverse()
 
               return (
                 <div key={`${weekData.weekNumber}-${weekData.year}`} className="space-y-4">
@@ -434,14 +440,14 @@ export default function AttendanceHistoryPage() {
                                         <th className="text-right p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap sticky right-0 bg-card z-10">
                                           إجمالي الأجر
                                         </th>
-                                        {dayNames.map((day, index) => (
+                                        {reversedDayNames.map((day, index) => (
                                           <th
                                             key={index}
                                             className="text-center p-2 md:p-3 font-bold text-xs md:text-sm whitespace-nowrap"
                                           >
                                             <div>{day}</div>
                                             <div className="text-[10px] md:text-xs text-muted-foreground font-normal mt-0.5">
-                                              {toLatinNumbers(weekDates[index].getDate())} {getArabicMonth(weekDates[index].getMonth())}
+                                              {toLatinNumbers(reversedWeekDates[index].getDate())} {getArabicMonth(reversedWeekDates[index].getMonth())}
                                             </div>
                                           </th>
                                         ))}
@@ -459,12 +465,12 @@ export default function AttendanceHistoryPage() {
                                             </span>
                                           </td>
                                           {[
-                                            worker.attendance.monday,
-                                            worker.attendance.tuesday,
-                                            worker.attendance.wednesday,
-                                            worker.attendance.thursday,
+                                            worker.attendance.saturday, // Saturday first (reversed)
                                             worker.attendance.friday,
-                                            worker.attendance.saturday,
+                                            worker.attendance.thursday,
+                                            worker.attendance.wednesday,
+                                            worker.attendance.tuesday,
+                                            worker.attendance.monday, // Monday last (reversed)
                                           ].map((attendance, dayIndex) => (
                                             <td key={dayIndex} className="text-center p-2 md:p-3">
                                               {getAttendanceBadge(attendance)}

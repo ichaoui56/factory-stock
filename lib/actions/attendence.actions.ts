@@ -471,3 +471,14 @@ export async function getWeeklySummary(weekNumber: string, year: number, workTyp
     return { success: false, error: "Failed to fetch weekly summary" }
   }
 }
+
+// Add this function to get clients count
+export async function getClientsCount() {
+  try {
+    const count = await prisma.client.count()
+    return { success: true, data: count }
+  } catch (error) {
+    console.error("Error fetching clients count:", error)
+    return { success: false, error: "فشل في جلب عدد العملاء" }
+  }
+}

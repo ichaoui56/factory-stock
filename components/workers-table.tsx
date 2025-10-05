@@ -204,7 +204,7 @@ export function WorkersTable({ workTypeFilter }: { workTypeFilter?: string }) {
                           {toLatinNumbers(Math.abs(balance).toFixed(2))} د.م.
                         </span>
                         <div className="text-[10px] text-muted-foreground">
-                          {balance > 0 ? "مستحق" : balance < 0 ? "زيادة" : "متوازن"}
+                          {balance > 0 ? "كيتسال " : balance < 0 ? "زيادة" : "ما كيتسال والو "}
                         </div>
                       </TableCell>
                       <TableCell className="text-xs md:text-sm whitespace-nowrap">

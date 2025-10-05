@@ -3,8 +3,11 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { getRecentWorkersWithBalance } from "@/lib/actions/dashboard.actions"
 import { toLatinNumbers } from "@/lib/utils"
+import Link from "next/link"
+import { Users, ArrowLeft } from "lucide-react"
 
 interface WorkerBalance {
   id: string
@@ -48,14 +51,14 @@ export function WorkersBalance() {
   }
 
   const getBalanceColor = (balance: number) => {
-    if (balance > 0) return "text-green-600"
-    if (balance < 0) return "text-red-600"
+    if (balance > 0) return "text-red-600"
+    if (balance < 0) return "text-green-600"
     return "text-gray-600"
   }
 
   const getBalanceText = (balance: number) => {
-    if (balance > 0) return "مدين"
-    if (balance < 0) return "دائن"
+    if (balance > 0) return "كيتسال"
+    if (balance < 0) return "زايدو في لخلاص"
     return "متوازن"
   }
 
@@ -64,9 +67,7 @@ export function WorkersBalance() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-            </svg>
+            <Users className="w-5 h-5" />
             أرصدة العمال
           </CardTitle>
         </CardHeader>
@@ -89,52 +90,56 @@ export function WorkersBalance() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="flex items-center gap-2">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-          </svg>
+          <Users className="w-5 h-5" />
           أرصدة العمال
         </CardTitle>
+        <Link href="/workers">
+          <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <span>عرض الكل</span>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        </Link>
       </CardHeader>
       <CardContent>
         {workers.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            <p>لا توجد بيانات للعرض</p>
+            <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="mb-4">لا توجد بيانات للعرض</p>
+            <Link href="/workers">
+              <Button variant="outline" size="sm">
+                إدارة العمال
+              </Button>
+            </Link>
           </div>
         ) : (
           <div className="space-y-3">
             {workers.map((worker) => (
-              <div key={worker.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium text-sm">{worker.name}</h4>
-                    <Badge variant="outline" className="text-xs">
-                      {getWorkTypeLabel(worker.workType)}
-                    </Badge>
+              <Link key={worker.id} href={`/workers/${worker.id}`}>
+                <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-medium text-sm group-hover:text-primary transition-colors">
+                        {worker.name}
+                      </h4>
+                      <Badge variant="outline" className="text-xs">
+                        {getWorkTypeLabel(worker.workType)}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      <span>كسب: {toLatinNumbers(worker.totalEarned.toFixed(3))} د.م</span>
+                      <span>دفع: {toLatinNumbers(worker.totalPaid.toFixed(3))} د.م</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>كسب: {toLatinNumbers(worker.totalEarned.toFixed(3))} د.م</span>
-                    <span>دفع: {toLatinNumbers(worker.totalPaid.toFixed(3))} د.م</span>
+                  <div className={`text-right ${getBalanceColor(worker.balance)}`}>
+                    <div className="font-bold">{toLatinNumbers(Math.abs(worker.balance).toFixed(3))} د.م</div>
+                    <div className="text-xs capitalize">{getBalanceText(worker.balance)}</div>
                   </div>
                 </div>
-                <div className={`text-right ${getBalanceColor(worker.balance)}`}>
-                  <div className="font-bold">{toLatinNumbers(Math.abs(worker.balance).toFixed(3))} د.م</div>
-                  <div className="text-xs capitalize">{getBalanceText(worker.balance)}</div>
-                </div>
-              </div>
+              </Link>
             ))}
-          </div>
-        )}
-        
-        {workers.length > 0 && (
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">إجمالي الأرصدة:</span>
-              <span className={`font-bold ${getBalanceColor(workers.reduce((sum, w) => sum + w.balance, 0))}`}>
-                {toLatinNumbers(Math.abs(workers.reduce((sum, w) => sum + w.balance, 0)).toFixed(3))} د.م
-              </span>
-            </div>
+
           </div>
         )}
       </CardContent>
