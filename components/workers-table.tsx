@@ -148,13 +148,13 @@ export function WorkersTable({ workTypeFilter }: { workTypeFilter?: string }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right whitespace-nowrap text-xs md:text-sm">الإجراءات</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-xs md:text-sm">الحالة</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-xs md:text-sm">الرصيد</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-xs md:text-sm">الراتب الأسبوعي</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-xs md:text-sm">نوع العمل</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-xs md:text-sm">الاسم</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-xs md:text-sm">رقم الهاتف</TableHead>
+                  <TableHead className="text-left whitespace-nowrap text-xs md:text-sm">الإجراءات</TableHead>
+                  <TableHead className="text-left whitespace-nowrap text-xs md:text-sm">الحالة</TableHead>
+                  <TableHead className="text-left whitespace-nowrap text-xs md:text-sm">الرصيد</TableHead>
+                  <TableHead className="text-left whitespace-nowrap text-xs md:text-sm">الراتب الأسبوعي</TableHead>
+                  <TableHead className="text-left whitespace-nowrap text-xs md:text-sm">نوع العمل</TableHead>
+                  <TableHead className="text-left whitespace-nowrap text-xs md:text-sm">الاسم</TableHead>
+                  <TableHead className="text-left whitespace-nowrap text-xs md:text-sm">رقم الهاتف</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

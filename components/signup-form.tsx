@@ -45,7 +45,7 @@ export function SignupForm() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold">نظام المصنع</h1>
+          <h1 className="text-2xl font-bold">Noor Style</h1>
         </div>
         <CardTitle className="text-2xl">إنشاء حساب جديد</CardTitle>
         <CardDescription>أدخل معلوماتك لإنشاء حساب جديد</CardDescription>

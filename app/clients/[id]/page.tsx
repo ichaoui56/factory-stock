@@ -228,8 +228,8 @@ export default function ClientDetailPage() {
                 >
                   {formatSafeNumber(client.balance)} د.م.
                 </p>
-                {client.balance > 0 && <p className="text-xs text-muted-foreground mt-1">مدين لنا</p>}
-                {client.balance < 0 && <p className="text-xs text-muted-foreground mt-1">دائن (دفعة مقدمة)</p>}
+                {client.balance > 0 && <p className="text-xs text-muted-foreground mt-1">خاصو يخلص </p>}
+                {client.balance < 0 && <p className="text-xs text-muted-foreground mt-1">زايدو في لخلاص </p>}
                 {client.balance === 0 && <p className="text-xs text-green-600 mt-1">متساوي</p>}
               </div>
 
@@ -342,13 +342,13 @@ export default function ClientDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-right text-xs md:text-sm">#</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">الملاحظات</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">المبلغ</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">التفاصيل</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">النوع</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">التاريخ</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">رقم المعاملة</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">#</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">الملاحظات</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">المبلغ</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">التفاصيل</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">النوع</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">التاريخ</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">رقم المعاملة</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -389,7 +389,7 @@ export default function ClientDetailPage() {
                                 )}
                               </TableCell>
                               <TableCell className="text-xs md:text-sm whitespace-nowrap">
-                                {formatDate(transaction.date)}
+                                {toLatinNumbers(formatDate(transaction.date))}
                               </TableCell>
                               <TableCell className="font-medium text-xs md:text-sm">{transaction.id}</TableCell>
                             </TableRow>
@@ -486,15 +486,15 @@ export default function ClientDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-right text-xs md:text-sm">#</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">الملاحظات</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">المبلغ الإجمالي</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">سعر الوحدة</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">الكمية</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">اسم المنتج</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">التاريخ</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">الإجراءات</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">رقم المعاملة</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">#</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">الملاحظات</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">المبلغ الإجمالي</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">سعر الوحدة</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">الكمية</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">اسم المنتج</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">التاريخ</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">الإجراءات</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">رقم المعاملة</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -524,7 +524,7 @@ export default function ClientDetailPage() {
                                 {transaction.productName}
                               </TableCell>
                               <TableCell className="text-xs md:text-sm whitespace-nowrap">
-                                {formatDate(transaction.date)}
+                                {toLatinNumbers(formatDate(transaction.date))}
                               </TableCell>
                               <TableCell>
                                 <TransactionDialog
@@ -627,12 +627,12 @@ export default function ClientDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-right text-xs md:text-sm">#</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">الملاحظات</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">المبلغ</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">التاريخ</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">الإجراءات</TableHead>
-                          <TableHead className="text-right text-xs md:text-sm">رقم المعاملة</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">#</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">الملاحظات</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">المبلغ</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">التاريخ</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">الإجراءات</TableHead>
+                          <TableHead className="text-left text-xs md:text-sm">رقم المعاملة</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -655,7 +655,7 @@ export default function ClientDetailPage() {
                                 {toLatinNumbers(payment.amount.toFixed(2))} د.م.
                               </TableCell>
                               <TableCell className="text-xs md:text-sm whitespace-nowrap">
-                                {formatDate(payment.date)}
+                                {toLatinNumbers(formatDate(payment.date))}
                               </TableCell>
                               <TableCell>
                                 <PaymentDialog

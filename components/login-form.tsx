@@ -41,7 +41,7 @@ export function LoginForm() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold">نظام المصنع</h1>
+          <h1 className="text-2xl font-bold">Noor Style</h1>
         </div>
         <CardTitle className="text-2xl">تسجيل الدخول</CardTitle>
         <CardDescription>أدخل بريدك الإلكتروني وكلمة المرور للوصول إلى حسابك</CardDescription>

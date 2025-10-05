@@ -500,11 +500,11 @@ export default function WorkerDetailPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-right">الحالة</TableHead>
-                        <TableHead className="text-right">الأجر المستحق</TableHead>
-                        <TableHead className="text-right">اليوم</TableHead>
-                        <TableHead className="text-right">التاريخ</TableHead>
-                        <TableHead className="text-right">الأسبوع</TableHead>
+                        <TableHead className="text-left">الحالة</TableHead>
+                        <TableHead className="text-left">الأجر المستحق</TableHead>
+                        <TableHead className="text-left">اليوم</TableHead>
+                        <TableHead className="text-left">التاريخ</TableHead>
+                        <TableHead className="text-left">الأسبوع</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -512,7 +512,7 @@ export default function WorkerDetailPage() {
                         markedAttendance.map((record) => (
                           <TableRow key={record.id} className="hover:bg-muted/50">
                             <TableCell>
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-start gap-2">
                                 <Badge
                                   variant={getAttendanceBadgeVariant(record.type)}
                                   className="flex items-center gap-1 min-w-[100px] justify-center"
@@ -526,12 +526,12 @@ export default function WorkerDetailPage() {
                               {toLatinNumbers(record.earned.toFixed(2))} .د.م
                             </TableCell>
                             <TableCell className="font-medium">
-                              <div className="text-right">
+                              <div className="text-left">
                                 <div className="font-semibold">{record.dayName}</div>
                               </div>
                             </TableCell>
                             <TableCell className="font-medium">
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-start gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 {formatDate(record.date)}
                               </div>
@@ -569,12 +569,12 @@ export default function WorkerDetailPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-right">الإجراءات</TableHead>
-                        <TableHead className="text-right">ملاحظات</TableHead>
-                        <TableHead className="text-right">النوع</TableHead>
-                        <TableHead className="text-right">المبلغ</TableHead>
-                        <TableHead className="text-right">الأسبوع</TableHead>
-                        <TableHead className="text-right">التاريخ</TableHead>
+                        <TableHead className="text-left">الإجراءات</TableHead>
+                        <TableHead className="text-left">ملاحظات</TableHead>
+                        <TableHead className="text-left">النوع</TableHead>
+                        <TableHead className="text-left">المبلغ</TableHead>
+                        <TableHead className="text-left">الأسبوع</TableHead>
+                        <TableHead className="text-left">التاريخ</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -618,7 +618,7 @@ export default function WorkerDetailPage() {
                               الأسبوع {payment.weekNumber} - {payment.year}
                             </TableCell>
                             <TableCell className="font-medium">
-                              <div className="flex items-center gap-2 justify-end">
+                              <div className="flex items-center gap-2 justify-start">
                                 <Clock className="h-4 w-4 text-muted-foreground" />
                                 {formatDate(payment.createdAt)}
                               </div>

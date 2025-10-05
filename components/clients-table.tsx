@@ -119,13 +119,8 @@ export function ClientsTable() {
             ) : (
               filteredClients.map((client, index) => (
                 <div key={client.id} className="border rounded-lg p-4 space-y-3 bg-card">
-                  {/* Header */}
+                  {/* Header - Reversed order */}
                   <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <h3 className="font-semibold text-base">{client.name}</h3>
-                      <p className="text-sm text-muted-foreground">{client.city}</p>
-                      <p dir="ltr" className="text-sm font-mono">{client.phoneNumber}</p>
-                    </div>
                     <div className="flex gap-1">
                       <Link href={`/clients/${client.id}`}>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -147,17 +142,22 @@ export function ClientsTable() {
                       </Link>
                       <EditClientDialog client={client} onUpdate={fetchClients} />
                     </div>
+                    <div className="space-y-1 flex-1 text-left">
+                      <h3 className="font-semibold text-base">{client.name}</h3>
+                      <p className="text-sm text-muted-foreground">{client.city}</p>
+                      <p dir="ltr" className="text-sm font-mono">{client.phoneNumber}</p>
+                    </div>
                   </div>
 
                   {/* Balance */}
                   <div>
                     {client.balance > 0 ? (
                       <Badge variant="destructive" className="text-xs w-full justify-center">
-                        مدين {toLatinNumbers(client.balance.toFixed(2))} د.م.
+                        خاصو يخلص {toLatinNumbers(client.balance.toFixed(2))} د.م.
                       </Badge>
                     ) : client.balance < 0 ? (
                       <Badge variant="default" className="text-xs w-full justify-center bg-primary">
-                        دائن {toLatinNumbers(Math.abs(client.balance).toFixed(2))} د.م.
+                         {toLatinNumbers(Math.abs(client.balance).toFixed(2))} د.م.
                       </Badge>
                     ) : (
                       <Badge
@@ -169,20 +169,20 @@ export function ClientsTable() {
                     )}
                   </div>
 
-                  {/* Financial Info */}
+                  {/* Financial Info - Reversed order */}
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="space-y-1">
-                      <p className="text-muted-foreground text-xs">المبيعات</p>
-                      <p className="font-medium">{toLatinNumbers(client.totalSales.toFixed(2))} د.م.</p>
-                    </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 text-left">
                       <p className="text-muted-foreground text-xs">الدفعات</p>
                       <p className="font-medium">{toLatinNumbers(client.totalPayments.toFixed(2))} د.م.</p>
+                    </div>
+                    <div className="space-y-1 text-left">
+                      <p className="text-muted-foreground text-xs">المبيعات</p>
+                      <p className="font-medium">{toLatinNumbers(client.totalSales.toFixed(2))} د.م.</p>
                     </div>
                   </div>
 
                   {/* Client ID */}
-                  <div className="pt-2 border-t">
+                  <div className="pt-2 border-t text-left">
                     <p className="text-xs text-muted-foreground font-mono">{client.id}</p>
                   </div>
                 </div>
@@ -190,20 +190,19 @@ export function ClientsTable() {
             )}
           </div>
 
-          {/* Tablet & Desktop View */}
+          {/* Tablet & Desktop View - Reversed columns */}
           <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right whitespace-nowrap text-sm">#</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-sm">الإجراءات</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-sm">الرصيد</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-sm">إجمالي الدفعات</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-sm">إجمالي المبيعات</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-sm">رقم الاتصال</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-sm">المدينة</TableHead>
-                  <TableHead className="text-right whitespace-nowrap text-sm">اسم العميل</TableHead>
                   <TableHead className="text-right whitespace-nowrap text-sm">رقم العميل</TableHead>
+                  <TableHead className="text-right whitespace-nowrap text-sm">اسم العميل</TableHead>
+                  <TableHead className="text-right whitespace-nowrap text-sm">المدينة</TableHead>
+                  <TableHead className="text-right whitespace-nowrap text-sm">رقم الاتصال</TableHead>
+                  <TableHead className="text-right whitespace-nowrap text-sm">إجمالي المبيعات</TableHead>
+                  <TableHead className="text-right whitespace-nowrap text-sm">إجمالي الدفعات</TableHead>
+                  <TableHead className="text-right whitespace-nowrap text-sm">الرصيد</TableHead>
+                  <TableHead className="text-right whitespace-nowrap text-sm">الإجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -216,11 +215,38 @@ export function ClientsTable() {
                 ) : (
                   filteredClients.map((client, index) => (
                     <TableRow key={client.id}>
-                      <TableCell className="text-sm font-medium text-muted-foreground" dir="ltr">
-                        {(index + 1).toLocaleString("en-US")}
+                      <TableCell className="font-medium text-sm whitespace-nowrap">{client.id}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{client.name}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{client.city}</TableCell>
+                      <TableCell dir="ltr" className="text-right text-sm whitespace-nowrap">
+                        {client.phoneNumber}
+                      </TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">
+                        {toLatinNumbers(client.totalSales.toFixed(2))} د.م.
+                      </TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">
+                        {toLatinNumbers(client.totalPayments.toFixed(2))} د.م.
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        {client.balance > 0 ? (
+                          <Badge variant="destructive" className="text-xs whitespace-nowrap">
+                            خاصو يخلص {toLatinNumbers(client.balance.toFixed(2))} د.م.
+                          </Badge>
+                        ) : client.balance < 0 ? (
+                          <Badge variant="default" className="text-xs whitespace-nowrap bg-primary">
+                            زايدو في لخلاص {toLatinNumbers(Math.abs(client.balance).toFixed(2))} د.م.
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="bg-green-50 text-green-700 border-green-200 text-xs whitespace-nowrap"
+                          >
+                            متساوي
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2 justify-end">
                           <Link href={`/clients/${client.id}`}>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -242,36 +268,6 @@ export function ClientsTable() {
                           <EditClientDialog client={client} onUpdate={fetchClients} />
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {client.balance > 0 ? (
-                          <Badge variant="destructive" className="text-xs whitespace-nowrap">
-                            مدين {toLatinNumbers(client.balance.toFixed(2))} د.م.
-                          </Badge>
-                        ) : client.balance < 0 ? (
-                          <Badge variant="default" className="text-xs whitespace-nowrap bg-primary">
-                            دائن {toLatinNumbers(Math.abs(client.balance).toFixed(2))} د.م.
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="bg-green-50 text-green-700 border-green-200 text-xs whitespace-nowrap"
-                          >
-                            متساوي
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {toLatinNumbers(client.totalPayments.toFixed(2))} د.م.
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {toLatinNumbers(client.totalSales.toFixed(2))} د.م.
-                      </TableCell>
-                      <TableCell dir="ltr" className="text-right text-sm whitespace-nowrap">
-                        {client.phoneNumber}
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{client.city}</TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{client.name}</TableCell>
-                      <TableCell className="font-medium text-sm whitespace-nowrap">{client.id}</TableCell>
                     </TableRow>
                   ))
                 )}
