@@ -111,9 +111,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const { data: session, status } = useSession()
 
-  // REMOVED THE AUTHENTICATION REDIRECT - This is causing the loop
-  // Server-side auth in LoginPage already handles this
-
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768
@@ -136,14 +133,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       try {
         const result = await getDashboardCounts()
         if (result.success && result.data) {
-          // Ensure we only set numbers, default to 0 if undefined
           const safeCounts: DashboardCounts = {
             workers: result.data.workers ?? 0,
             clients: result.data.clients ?? 0
           }
           setCounts(safeCounts)
         } else {
-          // Set default counts if no data
           setCounts({ workers: 0, clients: 0 })
         }
       } catch (error) {
@@ -154,16 +149,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       }
     }
 
-    fetchCounts()
-  }, [])
+    if (status === "authenticated") {
+      fetchCounts()
+    }
+  }, [status])
 
   const handleLogout = async () => {
     try {
       await signOutAction()
-      // The redirect will happen in the server action
     } catch (error) {
       console.error("Logout error:", error)
-      // Fallback client-side redirect
       router.push("/login")
     }
   }
@@ -191,13 +186,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Don't render if not authenticated - but don't redirect
+  // If unauthenticated, show a brief loading then let server handle redirect
   if (status === "unauthenticated") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري التحقق من المصادقة...</p>
+          <p className="text-muted-foreground">جاري إعادة التوجيه...</p>
         </div>
       </div>
     )

@@ -16,6 +16,7 @@ export type FormState = {
     email?: string
     password?: string
   }
+  success?: boolean
 }
 
 // Rate limiting store (in production, use Redis)
@@ -114,8 +115,11 @@ export async function signInAction(prevState: FormState | null, formData: FormDa
       }
     }
 
-    // If we get here, sign in was successful
-    redirect("/dashboard")
+    // Return success instead of redirecting
+    return {
+      success: true,
+      message: "تم تسجيل الدخول بنجاح!",
+    }
   } catch (error) {
     if (error instanceof Error && error.message === "NEXT_REDIRECT") {
       throw error

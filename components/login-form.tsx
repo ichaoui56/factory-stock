@@ -40,9 +40,15 @@ export function LoginForm() {
         setMessage(result.message)
       }
 
-      // If there are no errors, the redirect will happen in the action
+      // If login was successful, redirect to dashboard
+      if (result.success) {
+        // Force a full page reload to ensure session is properly synchronized
+        window.location.href = "/dashboard"
+        return
+      }
     } catch (error) {
       console.error("Login error:", error)
+      setMessage("حدث خطأ ما. يرجى المحاولة مرة أخرى")
     } finally {
       setIsLoading(false)
     }
@@ -139,7 +145,7 @@ export function LoginForm() {
           </div>
           
           {message && (
-            <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
+            <div className={`p-3 text-sm ${message.includes("نجاح") ? "text-green-500 bg-green-50 border border-green-200" : "text-red-500 bg-red-50 border border-red-200"} rounded-md`}>
               {message}
             </div>
           )}
