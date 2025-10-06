@@ -111,12 +111,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const { data: session, status } = useSession()
 
-  useEffect(() => {
-    // Redirect to login if not authenticated
-    if (status === "unauthenticated") {
-      router.push("/login")
-    }
-  }, [status, router])
+  // REMOVED THE AUTHENTICATION REDIRECT - This is causing the loop
+  // Server-side auth in LoginPage already handles this
 
   useEffect(() => {
     const handleResize = () => {
@@ -195,9 +191,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Don't render if not authenticated
+  // Don't render if not authenticated - but don't redirect
   if (status === "unauthenticated") {
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">جاري التحقق من المصادقة...</p>
+        </div>
+      </div>
+    )
   }
 
   // Get user info from session
