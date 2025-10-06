@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { DashboardLayout } from "@/components/dashboard-layout"
+import DashboardLayoutWrapper from "@/components/dashboard-layout-wrapper"
 import { WorkersTable } from "@/components/workers-table"
 import { AddWorkerDialog } from "@/components/add-worker-dialog"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,7 @@ export default function WorkersPage() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayoutWrapper>
       <div className="space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4">
           <div>
@@ -64,6 +64,6 @@ export default function WorkersPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </DashboardLayoutWrapper>
   )
 }

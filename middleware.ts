@@ -1,52 +1,20 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getToken } from 'next-auth/jwt'
 
-export async function middleware(request: NextRequest) {
-  // Get the token from the request
-  const token = await getToken({ 
-    req: request,
-    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
-  })
-
-  const { pathname } = request.nextUrl
-
-  // Define protected routes that require authentication
-  const protectedRoutes = [
-    '/dashboard',
-    '/workers',
-    '/clients', 
-    '/attendance'
-  ]
-
-  // Check if the current path is a protected route
-  const isProtectedRoute = protectedRoutes.some(route => 
-    pathname.startsWith(route)
-  )
-
-  // If it's a protected route and user is not authenticated, redirect to login
-  if (isProtectedRoute && !token) {
-    const loginUrl = new URL('/login', request.url)
-    // Add return URL for redirecting after login
-    return NextResponse.redirect(loginUrl)
-  }
-
-  // If user is authenticated and tries to access login page, redirect to dashboard
-  if (pathname.startsWith('/login') && token) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
+export function middleware(request: NextRequest) {
   // Security headers
   const response = NextResponse.next()
 
   // Prevent SQL injection attempts in query parameters
+  const url = request.nextUrl
   const sqlInjectionPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|EXEC|ALTER|CREATE|TRUNCATE)\b)/i,
     /('|"|;|--|\/\*|\*\/|@@|char|nchar|varchar|nvarchar)/i
   ]
 
   // Check URL path and search params for SQL injection patterns
-  const searchParams = request.nextUrl.search.toLowerCase()
+  const pathname = url.pathname.toLowerCase()
+  const searchParams = url.search.toLowerCase()
 
   for (const pattern of sqlInjectionPatterns) {
     if (pattern.test(pathname) || pattern.test(searchParams)) {

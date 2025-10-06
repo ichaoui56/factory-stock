@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DashboardLayout } from "@/components/dashboard-layout"
+import DashboardLayoutWrapper from "@/components/dashboard-layout-wrapper"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -241,37 +241,37 @@ export default function WorkerDetailPage() {
 
   if (loading) {
     return (
-      <DashboardLayout>
+      <DashboardLayoutWrapper>
         <div className="text-center py-12 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
-      </DashboardLayout>
+      </DashboardLayoutWrapper>
     )
   }
 
   if (error) {
     return (
-      <DashboardLayout>
+      <DashboardLayoutWrapper>
         <div className="text-center py-12">
           <h1 className="text-2xl font-bold mb-4">{error}</h1>
           <Link href="/workers">
             <Button>العودة إلى قائمة العمال</Button>
           </Link>
         </div>
-      </DashboardLayout>
+      </DashboardLayoutWrapper>
     )
   }
 
   if (!worker) {
     return (
-      <DashboardLayout>
+      <DashboardLayoutWrapper>
         <div className="text-center py-12">
           <h1 className="text-2xl font-bold mb-4">العامل غير موجود</h1>
           <Link href="/workers">
             <Button>العودة إلى قائمة العمال</Button>
           </Link>
         </div>
-      </DashboardLayout>
+      </DashboardLayoutWrapper>
     )
   }
 
@@ -287,7 +287,7 @@ export default function WorkerDetailPage() {
   const attendanceRate = totalDays > 0 ? (presentDays / totalDays) * 100 : 0
 
   return (
-    <DashboardLayout>
+    <DashboardLayoutWrapper>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -644,6 +644,6 @@ export default function WorkerDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </DashboardLayoutWrapper>
   )
 }

@@ -1,11 +1,11 @@
-import { DashboardLayout } from "@/components/dashboard-layout"
 import { StatsCards } from "@/components/stats-cards"
 import { QuickActions } from "@/components/quick-actions"
 import { WorkersBalance } from "@/components/workers-balance"
+import DashboardLayoutWrapper from "@/components/dashboard-layout-wrapper"
 
 export default function DashboardPage() {
   return (
-    <DashboardLayout>
+    <DashboardLayoutWrapper>
       <div className="space-y-4 md:space-y-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-balance">لوحة التحكم</h1>
@@ -19,6 +19,6 @@ export default function DashboardPage() {
           <WorkersBalance />
         </div>
       </div>
-    </DashboardLayout>
+    </DashboardLayoutWrapper>
   )
 }

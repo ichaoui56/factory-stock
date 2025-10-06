@@ -1,10 +1,10 @@
-import { DashboardLayout } from "@/components/dashboard-layout"
 import { AttendanceMarking } from "@/components/attendance-marking"
 import { Button } from "@/components/ui/button"
+import DashboardLayoutWrapper from "@/components/dashboard-layout-wrapper"
 
 export default function AttendancePage() {
   return (
-    <DashboardLayout>
+    <DashboardLayoutWrapper>
       <div className="space-y-3 md:space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 md:gap-3">
           <div className="flex-1 min-w-0">
@@ -26,6 +26,6 @@ export default function AttendancePage() {
 
         <AttendanceMarking />
       </div>
-    </DashboardLayout>
+    </DashboardLayoutWrapper>
   )
 }

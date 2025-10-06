@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { DashboardLayout } from "@/components/dashboard-layout"
+import DashboardLayoutWrapper from "@/components/dashboard-layout-wrapper"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,14 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, ChevronLeft, ChevronRight, Search, Users } from "lucide-react"
 import { getWeeklySummary, getAttendanceHistory } from "@/lib/actions/attendence.actions"
 import { calculateDailyRate, calculatePayment } from "@/lib/utils/attendance"
-import { 
-  getWeekDates, 
-  getWeekNumber, 
-  formatDateForDisplay, 
-  formatGregorianDate, 
+import {
+  getWeekDates,
+  getWeekNumber,
+  formatDateForDisplay,
+  formatGregorianDate,
   getArabicMonth,
   toLatinNumbers,
-  dayNames 
+  dayNames
 } from "@/lib/utils"
 import { WorkType, AttendanceType } from "@prisma/client"
 
@@ -218,7 +218,7 @@ export default function AttendanceHistoryPage() {
   ))
 
   return (
-    <DashboardLayout>
+    <DashboardLayoutWrapper>
       <div className="space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -502,6 +502,6 @@ export default function AttendanceHistoryPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </DashboardLayoutWrapper>
   )
 }

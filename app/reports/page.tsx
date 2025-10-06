@@ -1,10 +1,10 @@
-import { DashboardLayout } from "@/components/dashboard-layout"
+import DashboardLayoutWrapper from "@/components/dashboard-layout-wrapper"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 export default function ReportsPage() {
   return (
-    <DashboardLayout>
+    <DashboardLayoutWrapper>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-balance">التقارير</h1>
@@ -145,6 +145,6 @@ export default function ReportsPage() {
           </Card>
         </div>
       </div>
-    </DashboardLayout>
+    </DashboardLayoutWrapper>
   )
 }
