@@ -18,6 +18,8 @@ import {
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { getDashboardCounts } from "@/lib/actions/dashboard.actions"
+import { signOutAction } from "@/lib/actions/auth-actions"
+import { useSession } from "next-auth/react"
 
 interface DashboardCounts {
   workers: number
@@ -69,38 +71,6 @@ const navigation = [
   },
 ]
 
-// const generalNav = [
-//   {
-//     name: "الإعدادات",
-//     href: "/settings",
-//     icon: (
-//       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-//         <path
-//           strokeLinecap="round"
-//           strokeLinejoin="round"
-//           strokeWidth={2}
-//           d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-2.573 1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-2.572-1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-//         />
-//         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-//       </svg>
-//     ),
-//   },
-//   {
-//     name: "المساعدة",
-//     href: "/help",
-//     icon: (
-//       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-//         <path
-//           strokeLinecap="round"
-//           strokeLinejoin="round"
-//           strokeWidth={2}
-//           d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-//         />
-//       </svg>
-//     ),
-//   },
-// ]
-
 const attendanceNav = [
   {
     name: "تسجيل الحضور",
@@ -139,16 +109,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = useState(false)
   const [counts, setCounts] = useState<DashboardCounts>({ workers: 0, clients: 0 })
   const [loading, setLoading] = useState(true)
+  const { data: session, status } = useSession()
 
   useEffect(() => {
-    const checkAuth = () => {
-      const isAuthenticated = localStorage.getItem("isAuthenticated")
-      if (!isAuthenticated) {
-        router.push("/login")
-      }
+    // Redirect to login if not authenticated
+    if (status === "unauthenticated") {
+      router.push("/login")
     }
-    checkAuth()
+  }, [status, router])
 
+  useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768
       setIsMobile(mobile)
@@ -162,7 +132,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     handleResize()
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
-  }, [router])
+  }, [])
 
   // Fetch counts when component mounts
   useEffect(() => {
@@ -191,10 +161,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     fetchCounts()
   }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated")
-    localStorage.removeItem("userRole")
-    router.push("/login")
+  const handleLogout = async () => {
+    try {
+      await signOutAction()
+      // The redirect will happen in the server action
+    } catch (error) {
+      console.error("Logout error:", error)
+      // Fallback client-side redirect
+      router.push("/login")
+    }
   }
 
   // Helper function to get badge for navigation items
@@ -208,8 +183,35 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     return null
   }
 
+  // Show loading state while checking authentication
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">جاري التحميل...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render if not authenticated
+  if (status === "unauthenticated") {
+    return null
+  }
+
+  // Get user info from session
+  const userName = session?.user?.name || "مستخدم"
+  const userEmail = session?.user?.email || ""
+  const userInitials = userName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" dir="rtl">
       {isMobile && isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 transition-opacity duration-300"
@@ -247,7 +249,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   />
                 </svg>
               </div>
-              <span className="font-bold text-lg md:text-xl whitespace-nowrap">Noor Style</span>
+              <span className="font-bold text-lg md:text-xl whitespace-nowrap">نور ستايل</span>
             </div>
           </div>
 
@@ -313,35 +315,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 })}
               </div>
             </div>
-
-            {/* <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-2 md:mb-3 px-2 md:px-3">عام</p>
-              <div className="space-y-1">
-                {generalNav.map((item) => {
-                  const isActive = pathname === item.href
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-2 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-lg transition-colors min-h-[44px]",
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground hover:bg-accent hover:text-accent-foreground",
-                      )}
-                      onClick={() => isMobile && setIsSidebarOpen(false)}
-                    >
-                      {item.icon}
-                      <span className="text-sm md:text-base">{item.name}</span>
-                    </Link>
-                  )
-                })}
-              </div>
-            </div> */}
           </nav>
 
           <div className="p-3 md:p-4 border-t border-border flex-shrink-0">
-            <Button variant="ghost" className="w-full justify-start gap-2 md:gap-3 min-h-[44px]" onClick={handleLogout}>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-2 md:gap-3 min-h-[44px]" 
+              onClick={handleLogout}
+            >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
@@ -422,12 +403,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-2 md:gap-3 min-h-[44px]">
                     <Avatar className="w-7 h-7 md:w-8 md:h-8">
-                      <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                      <AvatarFallback>أح</AvatarFallback>
+                      <AvatarImage src="/avatar.png" alt={userName} />
+                      <AvatarFallback>{userInitials}</AvatarFallback>
                     </Avatar>
                     <div className="text-right hidden lg:block">
-                      <p className="text-sm font-medium">أحمد محمد</p>
-                      <p className="text-xs text-muted-foreground">ahmed@example.com</p>
+                      <p className="text-sm font-medium">{userName}</p>
+                      <p className="text-xs text-muted-foreground">{userEmail}</p>
                     </div>
                   </Button>
                 </DropdownMenuTrigger>

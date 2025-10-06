@@ -4,6 +4,7 @@ import { Cairo } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
+import { SessionProvider } from "next-auth/react"
 
 const cairo = Cairo({
   subsets: ["latin", "arabic"],
@@ -25,10 +26,12 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body className={`font-sans ${cairo.variable}`}>
-        <Suspense fallback={<div>Loading...</div>}>
-          {children}
-          <Analytics />
-        </Suspense>
+        <SessionProvider>
+          <Suspense fallback={<div>Loading...</div>}>
+            {children}
+            <Analytics />
+          </Suspense>
+        </SessionProvider>
       </body>
     </html>
   )
