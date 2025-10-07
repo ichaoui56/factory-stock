@@ -195,7 +195,6 @@ export function ClientsTable() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right whitespace-nowrap text-sm">رقم العميل</TableHead>
                   <TableHead className="text-right whitespace-nowrap text-sm">اسم العميل</TableHead>
                   <TableHead className="text-right whitespace-nowrap text-sm">المدينة</TableHead>
                   <TableHead className="text-right whitespace-nowrap text-sm">رقم الاتصال</TableHead>
@@ -215,7 +214,6 @@ export function ClientsTable() {
                 ) : (
                   filteredClients.map((client, index) => (
                     <TableRow key={client.id}>
-                      <TableCell className="font-medium text-sm whitespace-nowrap">{client.id}</TableCell>
                       <TableCell className="text-sm whitespace-nowrap">{client.name}</TableCell>
                       <TableCell className="text-sm whitespace-nowrap">{client.city}</TableCell>
                       <TableCell dir="ltr" className="text-right text-sm whitespace-nowrap">
