@@ -65,6 +65,7 @@ interface DailyAttendance {
   year: number
 }
 
+// Convert weekly attendance to daily records for display - FIXED VERSION
 function convertToDailyAttendance(weeklyAttendances: WeeklyAttendance[], dailyRate: number): DailyAttendance[] {
   const dailyRecords: DailyAttendance[] = []
 
@@ -80,9 +81,9 @@ function convertToDailyAttendance(weeklyAttendances: WeeklyAttendance[], dailyRa
       { type: attendance.saturday, dayName: dayNames[5], field: 'saturday' },
     ]
 
-    // Create a base date for the week (using Monday of that week)
-    const baseDate = new Date(attendance.createdAt)
-
+    // Get the actual Monday date for this week based on week number and year
+    const mondayDate = getMondayDateFromWeekNumber(attendance.weekNumber, attendance.year)
+    
     days.forEach((day, index) => {
       // Skip unrecorded days (null or undefined)
       if (day.type === null || day.type === undefined) {
@@ -105,9 +106,9 @@ function convertToDailyAttendance(weeklyAttendances: WeeklyAttendance[], dailyRa
           break
       }
 
-      // Calculate date for this day
-      const dayDate = new Date(baseDate)
-      dayDate.setDate(baseDate.getDate() + index)
+      // Calculate date for this day starting from Monday
+      const dayDate = new Date(mondayDate)
+      dayDate.setDate(mondayDate.getDate() + index)
 
       dailyRecords.push({
         id: `${attendance.id}-${day.field}`,
@@ -123,6 +124,34 @@ function convertToDailyAttendance(weeklyAttendances: WeeklyAttendance[], dailyRa
 
   // Sort by date descending (newest first)
   return dailyRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+}
+
+// Helper function to get Monday date from week number and year
+function getMondayDateFromWeekNumber(weekNumber: string, year: number): Date {
+  // Extract week number from string like "W39"
+  const weekNo = parseInt(weekNumber.replace('W', ''))
+  
+  // Create a date for January 1st of the year
+  const janFirst = new Date(year, 0, 1)
+  
+  // Calculate the day of week for January 1st (0 = Sunday, 1 = Monday, etc.)
+  const janFirstDay = janFirst.getDay()
+  
+  // Calculate the first Monday of the year
+  let firstMonday: Date
+  if (janFirstDay <= 1) {
+    // If Jan 1 is Sunday (0) or Monday (1)
+    firstMonday = new Date(year, 0, 1 + (1 - janFirstDay))
+  } else {
+    // If Jan 1 is Tuesday-Saturday
+    firstMonday = new Date(year, 0, 1 + (8 - janFirstDay))
+  }
+  
+  // Calculate the Monday of the target week
+  const targetMonday = new Date(firstMonday)
+  targetMonday.setDate(firstMonday.getDate() + (weekNo - 1) * 7)
+  
+  return targetMonday
 }
 
 // Get icon for attendance type

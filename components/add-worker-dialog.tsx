@@ -72,89 +72,93 @@ export function AddWorkerDialog({ onWorkerAdded }: AddWorkerDialogProps) {
           إضافة عامل
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle className="text-xl md:text-2xl">إضافة عامل جديد</DialogTitle>
-            <DialogDescription className="text-sm md:text-base">
-              أدخل بيانات العامل الجديد. اضغط حفظ عند الانتهاء.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-sm md:text-base">
-                الاسم الكامل <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="fullName"
-                placeholder="أدخل اسم العامل"
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                required
-                disabled={loading}
-                className="text-sm md:text-base"
-              />
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="text-xl md:text-2xl">إضافة عامل جديد</DialogTitle>
+          <DialogDescription className="text-sm md:text-base">
+            أدخل بيانات العامل الجديد. اضغط حفظ عند الانتهاء.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="flex-1 overflow-y-auto py-4">
+          <form onSubmit={handleSubmit} className="h-full">
+            <div className="grid gap-4 h-full">
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-sm md:text-base">
+                  الاسم الكامل <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="fullName"
+                  placeholder="أدخل اسم العامل"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  required
+                  disabled={loading}
+                  className="text-sm md:text-base"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="workType" className="text-sm md:text-base">
+                  نوع العمل <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={formData.workType}
+                  onValueChange={(value) => setFormData({ ...formData, workType: value })}
+                  required
+                  disabled={loading}
+                >
+                  <SelectTrigger className="text-sm md:text-base">
+                    <SelectValue placeholder="اختر نوع العمل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LAFSOW_MAHDI">لافصو مهدي</SelectItem>
+                    <SelectItem value="ALFASALA">الفصالة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="weeklyPayment" className="text-sm md:text-base">
+                  الراتب الأسبوعي (د.م.) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="weeklyPayment"
+                  type="number"
+                  step="0.01"
+                  placeholder="1200"
+                  value={formData.weeklyPayment}
+                  onChange={(e) => setFormData({ ...formData, weeklyPayment: e.target.value })}
+                  required
+                  disabled={loading}
+                  className="text-sm md:text-base"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber" className="text-sm md:text-base">
+                  رقم الهاتف <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  placeholder="0612345678"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  required
+                  disabled={loading}
+                  className="text-sm md:text-base"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="workType" className="text-sm md:text-base">
-                نوع العمل <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={formData.workType}
-                onValueChange={(value) => setFormData({ ...formData, workType: value })}
-                required
-                disabled={loading}
-              >
-                <SelectTrigger className="text-sm md:text-base">
-                  <SelectValue placeholder="اختر نوع العمل" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LAFSOW_MAHDI">لافصو مهدي</SelectItem>
-                  <SelectItem value="ALFASALA">الفصالة</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="weeklyPayment" className="text-sm md:text-base">
-                الراتب الأسبوعي (د.م.) <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="weeklyPayment"
-                type="number"
-                step="0.01"
-                placeholder="1200"
-                value={formData.weeklyPayment}
-                onChange={(e) => setFormData({ ...formData, weeklyPayment: e.target.value })}
-                required
-                disabled={loading}
-                className="text-sm md:text-base"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber" className="text-sm md:text-base">
-                رقم الهاتف <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="phoneNumber"
-                type="tel"
-                placeholder="0612345678"
-                value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                required
-                disabled={loading}
-                className="text-sm md:text-base"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading} className="min-h-[44px]">
-              إلغاء
-            </Button>
-            <Button type="submit" disabled={loading} className="min-h-[44px]">
-              {loading ? "جاري الحفظ..." : "حفظ العامل"}
-            </Button>
-          </DialogFooter>
-        </form>
+            
+            <DialogFooter className="gap-2 mt-6 flex-shrink-0">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading} className="min-h-[44px]">
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={loading} className="min-h-[44px]">
+                {loading ? "جاري الحفظ..." : "حفظ العامل"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

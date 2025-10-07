@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Pencil } from "lucide-react"
 import { toast } from "sonner"
-import { updateWorker } from "@/lib/actions/worker.actions"
+import { updateWorker, deleteWorker } from "@/lib/actions/worker.actions"
 import { mapWorkTypeToFrontend, mapWorkTypeToDatabase } from "@/lib/utils/worker-utils"
 import type { Worker } from "@prisma/client"
 
@@ -30,6 +30,7 @@ interface EditWorkerDialogProps {
 export function EditWorkerDialog({ worker, onWorkerUpdated }: EditWorkerDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [formData, setFormData] = useState({
     fullName: worker.fullName,
     phoneNumber: worker.phoneNumber,
@@ -78,6 +79,29 @@ export function EditWorkerDialog({ worker, onWorkerUpdated }: EditWorkerDialogPr
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirm("هل أنت متأكد من حذف هذا العامل؟ سيتم حذف جميع سجلات الحضور والمدفوعات المرتبطة به.")) {
+      return
+    }
+
+    setDeleteLoading(true)
+    try {
+      const result = await deleteWorker(worker.id)
+      if (result.success) {
+        toast.success("تم حذف العامل بنجاح")
+        setOpen(false)
+        onWorkerUpdated?.()
+      } else {
+        toast.error(result.error || "فشل في حذف العامل")
+      }
+    } catch (error) {
+      console.error("Error deleting worker:", error)
+      toast.error("حدث خطأ أثناء حذف العامل")
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -85,97 +109,122 @@ export function EditWorkerDialog({ worker, onWorkerUpdated }: EditWorkerDialogPr
           <Pencil className="w-4 h-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>تعديل بيانات العامل</DialogTitle>
           <DialogDescription>قم بتحديث معلومات العامل وحالته</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="fullName">الاسم الكامل</Label>
-              <Input
-                id="fullName"
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                placeholder="أدخل الاسم الكامل"
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="phoneNumber">رقم الهاتف</Label>
-              <Input
-                id="phoneNumber"
-                value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                placeholder="أدخل رقم الهاتف"
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="weeklyPayment">الراتب الأسبوعي (.د.م)</Label>
-              <Input
-                id="weeklyPayment"
-                type="number"
-                step="0.01"
-                value={formData.weeklyPayment}
-                onChange={(e) => setFormData({ ...formData, weeklyPayment: e.target.value })}
-                placeholder="1200"
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label>نوع العمل</Label>
-              <Select
-                value={formData.workType}
-                onValueChange={(value) => setFormData({ ...formData, workType: value })}
-                required
-                disabled={loading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر نوع العمل" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lafso-mahdi">لافصو مهدي</SelectItem>
-                  <SelectItem value="al-fasala">الفصالة</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <Label htmlFor="active-toggle" className="text-base">
-                  حالة العامل
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  {formData.isActive
-                    ? "العامل نشط ويظهر في الحضور اليومي"
-                    : "العامل غير نشط ولن يظهر في الحضور اليومي"}
-                </p>
+        
+        <div className="flex-1 overflow-y-auto py-4">
+          <form onSubmit={handleSubmit} className="h-full">
+            <div className="grid gap-4 h-full">
+              <div className="grid gap-2">
+                <Label htmlFor="fullName">الاسم الكامل</Label>
+                <Input
+                  id="fullName"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  placeholder="أدخل الاسم الكامل"
+                  required
+                  disabled={loading || deleteLoading}
+                />
               </div>
-              <Switch
-                id="active-toggle"
-                checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-                disabled={loading}
-              />
+
+              <div className="grid gap-2">
+                <Label htmlFor="phoneNumber">رقم الهاتف</Label>
+                <Input
+                  id="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  placeholder="أدخل رقم الهاتف"
+                  required
+                  disabled={loading || deleteLoading}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="weeklyPayment">الراتب الأسبوعي (.د.م)</Label>
+                <Input
+                  id="weeklyPayment"
+                  type="number"
+                  step="0.01"
+                  value={formData.weeklyPayment}
+                  onChange={(e) => setFormData({ ...formData, weeklyPayment: e.target.value })}
+                  placeholder="1200"
+                  required
+                  disabled={loading || deleteLoading}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>نوع العمل</Label>
+                <Select
+                  value={formData.workType}
+                  onValueChange={(value) => setFormData({ ...formData, workType: value })}
+                  required
+                  disabled={loading || deleteLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر نوع العمل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lafso-mahdi">لافصو مهدي</SelectItem>
+                    <SelectItem value="al-fasala">الفصالة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="active-toggle" className="text-base">
+                    حالة العامل
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {formData.isActive
+                      ? "العامل نشط ويظهر في الحضور اليومي"
+                      : "العامل غير نشط ولن يظهر في الحضور اليومي"}
+                  </p>
+                </div>
+                <Switch
+                  id="active-toggle"
+                  checked={formData.isActive}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                  disabled={loading || deleteLoading}
+                />
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
-              إلغاء
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "جاري الحفظ..." : "حفظ التغييرات"}
-            </Button>
-          </DialogFooter>
-        </form>
+            
+            <DialogFooter className="flex flex-col gap-3 mt-6 flex-shrink-0">
+              <div className="flex gap-3 w-full">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setOpen(false)} 
+                  className="flex-1"
+                  disabled={loading || deleteLoading}
+                >
+                  إلغاء
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={loading || deleteLoading}
+                >
+                  {loading ? "جاري الحفظ..." : "حفظ التغييرات"}
+                </Button>
+              </div>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={loading || deleteLoading}
+                className="w-full"
+              >
+                {deleteLoading ? "جاري الحذف..." : "حذف العامل"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

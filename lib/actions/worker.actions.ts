@@ -208,13 +208,31 @@ export async function updateWorker(
   }
 }
 
+// In your worker.actions.ts - make sure this function is properly exported
 export async function deleteWorker(id: string) {
   try {
+    // Check if worker has any related records before deleting
+    const workerWithRelations = await prisma.worker.findUnique({
+      where: { id },
+      include: {
+        attendances: true,
+        payments: true,
+      },
+    })
+
+    if (!workerWithRelations) {
+      return { success: false, error: "العامل غير موجود" }
+    }
+
+    // Optional: Add confirmation logic here if needed
+    // For example, prevent deletion if there are payments or attendance records
+
     await prisma.worker.delete({
       where: { id },
     })
 
     revalidatePath("/workers")
+    revalidatePath(`/workers/${id}`)
     return { success: true }
   } catch (error) {
     console.error("Error deleting worker:", error)

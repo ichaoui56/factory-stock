@@ -1,4 +1,3 @@
-// components/edit-client-dialog.tsx
 "use client"
 
 import type React from "react"
@@ -103,78 +102,81 @@ export function EditClientDialog({ client, onUpdate }: EditClientDialogProps) {
           </svg>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>تعديل بيانات العميل</DialogTitle>
           <DialogDescription>قم بتحديث معلومات العميل</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-name">اسم العميل</Label>
-            <Input
-              id="edit-name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              disabled={loading || deleteLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="edit-city">المدينة</Label>
-            <Input
-              id="edit-city"
-              value={formData.city}
-              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              required
-              disabled={loading || deleteLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="edit-phoneNumber">رقم الهاتف</Label>
-            <Input
-              id="edit-phoneNumber"
-              type="tel"
-              dir="ltr"
-              value={formData.phoneNumber}
-              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-              required
-              disabled={loading || deleteLoading}
-            />
-          </div>
-
-          <div className="flex flex-col gap-3 pt-4">
-            <div className="flex gap-3">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setOpen(false)}
-                className="flex-1"
+        
+        <div className="flex-1 overflow-y-auto py-4">
+          <form onSubmit={handleSubmit} className="h-full space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">اسم العميل</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
                 disabled={loading || deleteLoading}
-              >
-                إلغاء
-              </Button>
-              <Button 
-                type="submit" 
-                className="flex-1"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-city">المدينة</Label>
+              <Input
+                id="edit-city"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                required
                 disabled={loading || deleteLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-phoneNumber">رقم الهاتف</Label>
+              <Input
+                id="edit-phoneNumber"
+                type="tel"
+                dir="ltr"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                required
+                disabled={loading || deleteLoading}
+              />
+            </div>
+
+            <div className="flex flex-col gap-3 pt-4 flex-shrink-0">
+              <div className="flex gap-3">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setOpen(false)}
+                  className="flex-1"
+                  disabled={loading || deleteLoading}
+                >
+                  إلغاء
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={loading || deleteLoading}
+                >
+                  {loading ? "جاري التحديث..." : "حفظ التغييرات"}
+                </Button>
+              </div>
+              
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={loading || deleteLoading}
+                className="w-full"
               >
-                {loading ? "جاري التحديث..." : "حفظ التغييرات"}
+                {deleteLoading ? "جاري الحذف..." : "حذف العميل"}
               </Button>
             </div>
-            
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={loading || deleteLoading}
-              className="w-full"
-            >
-              {deleteLoading ? "جاري الحذف..." : "حذف العميل"}
-            </Button>
-          </div>
-        </form>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

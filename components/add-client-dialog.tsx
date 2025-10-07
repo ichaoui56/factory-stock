@@ -71,75 +71,79 @@ export function AddClientDialog({ onClientAdded }: AddClientDialogProps) {
           إضافة عميل
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle className="text-xl md:text-2xl">إضافة عميل جديد</DialogTitle>
-            <DialogDescription className="text-sm md:text-base">
-              أدخل بيانات العميل الجديد. اضغط حفظ عند الانتهاء.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm md:text-base">
-                اسم العميل <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="name"
-                placeholder="أدخل اسم العميل"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                className="text-sm md:text-base"
-                disabled={loading}
-              />
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="text-xl md:text-2xl">إضافة عميل جديد</DialogTitle>
+          <DialogDescription className="text-sm md:text-base">
+            أدخل بيانات العميل الجديد. اضغط حفظ عند الانتهاء.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="flex-1 overflow-y-auto py-4">
+          <form onSubmit={handleSubmit} className="h-full">
+            <div className="grid gap-4 h-full">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-sm md:text-base">
+                  اسم العميل <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  placeholder="أدخل اسم العميل"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  className="text-sm md:text-base"
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city" className="text-sm md:text-base">
+                  المدينة <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="city"
+                  placeholder="أدخل مدينة العميل"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  required
+                  className="text-sm md:text-base"
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber" className="text-sm md:text-base">
+                  رقم الهاتف <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  dir="ltr"
+                  placeholder="01012345678"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  required
+                  className="text-sm md:text-base"
+                  disabled={loading}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="city" className="text-sm md:text-base">
-                المدينة <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="city"
-                placeholder="أدخل مدينة العميل"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                required
-                className="text-sm md:text-base"
+            
+            <DialogFooter className="gap-2 mt-6 flex-shrink-0">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setOpen(false)} 
+                className="min-h-[44px]"
                 disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber" className="text-sm md:text-base">
-                رقم الهاتف <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="phoneNumber"
-                type="tel"
-                dir="ltr"
-                placeholder="01012345678"
-                value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                required
-                className="text-sm md:text-base"
-                disabled={loading}
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setOpen(false)} 
-              className="min-h-[44px]"
-              disabled={loading}
-            >
-              إلغاء
-            </Button>
-            <Button type="submit" className="min-h-[44px]" disabled={loading}>
-              {loading ? "جاري الإضافة..." : "حفظ العميل"}
-            </Button>
-          </DialogFooter>
-        </form>
+              >
+                إلغاء
+              </Button>
+              <Button type="submit" className="min-h-[44px]" disabled={loading}>
+                {loading ? "جاري الإضافة..." : "حفظ العميل"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   )
