@@ -332,7 +332,6 @@ function AttendanceContent({
                       <div className="flex items-start justify-between mb-2.5 md:mb-3 gap-2">
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm md:text-lg font-bold mb-0.5 break-words">{worker.fullName}</h4>
-                          <p className="text-xs md:text-sm text-muted-foreground">{toLatinNumbers(worker.id.slice(-4))}</p>
                         </div>
                         <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-muted flex items-center justify-center text-base md:text-lg font-bold flex-shrink-0">
                           {worker.fullName.charAt(0)}

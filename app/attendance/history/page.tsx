@@ -480,9 +480,6 @@ export default function AttendanceHistoryPage() {
                                           <div className="font-bold text-xs md:text-sm break-words max-w-[120px] md:max-w-none text-right">
                                             {worker.workerName}
                                           </div>
-                                          <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">
-                                            {toLatinNumbers(worker.workerId.slice(-4))}
-                                          </div>
                                         </td>
                                       </tr>
                                     ))}
