@@ -5,6 +5,7 @@ import { useState } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { WorkersTable } from "@/components/workers-table"
 import { AddWorkerDialog } from "@/components/add-worker-dialog"
+import { PayAllWorkersDialog } from "@/components/pay-all-workers-dialog" // Add this import
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
@@ -13,6 +14,11 @@ export default function WorkersPage() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const handleWorkerChange = () => {
+    setRefreshKey(prev => prev + 1)
+  }
+
+  const handlePaymentCompleted = () => {
+    // Refresh the table when payments are completed
     setRefreshKey(prev => prev + 1)
   }
 
@@ -38,6 +44,10 @@ export default function WorkersPage() {
                 تسجيل الحضور
               </Button>
             </Link>
+            
+            {/* Add the Pay All Workers button */}
+            <PayAllWorkersDialog onPaymentCompleted={handlePaymentCompleted} />
+            
             <AddWorkerDialog onWorkerAdded={handleWorkerChange} />
           </div>
         </div>

@@ -28,6 +28,7 @@ import { getWorkerById, getWorkerBalance, getWorkerAttendance, getWorkerPayments
 import type { Worker, WeeklyAttendance, Payment, AttendanceType, PaymentType, WorkType } from "@prisma/client"
 import { toast } from "sonner"
 import { EditPaymentDialog } from "@/components/EditPaymentDialog"
+import { QuickPayButton } from "@/components/quick-pay-button"
 
 function toLatinNumbers(str: string | number): string {
   const arabicToLatin: Record<string, string> = {
@@ -350,6 +351,12 @@ export default function WorkerDetailPage() {
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <EditWorkerDialog worker={worker} onWorkerUpdated={fetchData} />
+            <QuickPayButton
+              workerId={worker.id}
+              workerName={worker.fullName}
+              currentBalance={balance}
+              onPaymentRecorded={fetchData}
+            />
             <RecordPaymentDialog
               workerId={worker.id}
               workerName={worker.fullName}
@@ -476,13 +483,12 @@ export default function WorkerDetailPage() {
                 <span className="text-xs sm:text-sm text-muted-foreground">نوع العمل</span>
                 <Badge
                   variant="outline"
-                  className={`flex-shrink-0 text-xs sm:text-sm ${
-                    worker.workType === "LAFSOW_MAHDI"
-                      ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                      : worker.workType === "ALFASALA"
-                        ? "bg-green-500/10 text-green-600 border-green-500/20"
-                        : "bg-purple-500/10 text-purple-600 border-purple-500/20"
-                  }`}
+                  className={`flex-shrink-0 text-xs sm:text-sm ${worker.workType === "LAFSOW_MAHDI"
+                    ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                    : worker.workType === "ALFASALA"
+                      ? "bg-green-500/10 text-green-600 border-green-500/20"
+                      : "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                    }`}
                 >
                   {getWorkTypeLabel(worker.workType)}
                 </Badge>
@@ -491,11 +497,10 @@ export default function WorkerDetailPage() {
                 <span className="text-xs sm:text-sm text-muted-foreground">الحالة</span>
                 <Badge
                   variant="outline"
-                  className={`flex-shrink-0 text-xs sm:text-sm ${
-                    worker.isActive
-                      ? "bg-primary/10 text-primary border-primary/20"
-                      : "bg-gray-100 text-gray-600 border-gray-200"
-                  }`}
+                  className={`flex-shrink-0 text-xs sm:text-sm ${worker.isActive
+                    ? "bg-primary/10 text-primary border-primary/20"
+                    : "bg-gray-100 text-gray-600 border-gray-200"
+                    }`}
                 >
                   {worker.isActive ? "نشط" : "غير نشط"}
                 </Badge>
@@ -673,13 +678,12 @@ export default function WorkerDetailPage() {
                             <TableCell className="px-2 sm:px-4 py-2 sm:py-3">
                               <Badge
                                 variant="outline"
-                                className={`text-xs whitespace-nowrap ${
-                                  payment.paymentType === "WEEKLY"
-                                    ? "bg-blue-100 text-blue-700 border-blue-200"
-                                    : payment.paymentType === "DAILY"
-                                      ? "bg-green-100 text-green-700 border-green-200"
-                                      : "bg-purple-100 text-purple-700 border-purple-200"
-                                }`}
+                                className={`text-xs whitespace-nowrap ${payment.paymentType === "WEEKLY"
+                                  ? "bg-blue-100 text-blue-700 border-blue-200"
+                                  : payment.paymentType === "DAILY"
+                                    ? "bg-green-100 text-green-700 border-green-200"
+                                    : "bg-purple-100 text-purple-700 border-purple-200"
+                                  }`}
                               >
                                 {getPaymentTypeLabel(payment.paymentType)}
                               </Badge>

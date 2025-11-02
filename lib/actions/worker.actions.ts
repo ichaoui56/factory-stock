@@ -518,3 +518,78 @@ export async function getWorkersCount() {
     return { success: false, error: "فشل في جلب عدد العمال" }
   }
 }
+
+// Add this to your existing worker.actions.ts
+export async function payAllWorkers(paymentType: "WEEKLY" | "PARTIAL" = "WEEKLY", note?: string) {
+  try {
+    // Get all active workers with their balances
+    const workersResult = await getAllWorkersWithBalances()
+    if (!workersResult.success || !workersResult.data) {
+      return { success: false, error: workersResult.error || "فشل في جلب بيانات العمال" }
+    }
+
+    const workers = workersResult.data
+    const activeWorkers = workers.filter(worker => worker.isActive && worker.balance > 0)
+
+    if (activeWorkers.length === 0) {
+      return { success: false, error: "لا يوجد عمال نشطين لديهم رصيد مستحق" }
+    }
+
+    const now = new Date()
+    const { weekNumber, year } = getWeekNumber(now)
+    const results = []
+
+    // Process payments for each worker
+    for (const worker of activeWorkers) {
+      try {
+        // Only pay if worker has positive balance (money owed to worker)
+        if (worker.balance > 0) {
+          const payment = await prisma.payment.create({
+            data: {
+              workerId: worker.id,
+              amount: worker.balance,
+              paymentType: paymentType as PaymentType,
+              weekNumber,
+              year,
+              note: note || `دفعة جماعية - ${paymentType === "WEEKLY" ? "أسبوعية" : "جزئية"}`,
+            },
+          })
+          results.push({
+            workerId: worker.id,
+            workerName: worker.fullName,
+            amount: worker.balance,
+            success: true,
+            paymentId: payment.id
+          })
+        }
+      } catch (error) {
+        results.push({
+          workerId: worker.id,
+          workerName: worker.fullName,
+          amount: worker.balance,
+          success: false,
+          error: error instanceof Error ? error.message : "خطأ غير معروف"
+        })
+      }
+    }
+
+    const successfulPayments = results.filter(r => r.success)
+    const failedPayments = results.filter(r => !r.success)
+
+    revalidatePath("/workers")
+    
+    return {
+      success: true,
+      data: {
+        totalWorkers: activeWorkers.length,
+        successfulPayments: successfulPayments.length,
+        failedPayments: failedPayments.length,
+        totalAmount: successfulPayments.reduce((sum, p) => sum + p.amount, 0),
+        details: results
+      }
+    }
+  } catch (error) {
+    console.error("Error in payAllWorkers:", error)
+    return { success: false, error: "فشل في عملية الدفع الجماعي" }
+  }
+}
