@@ -31,6 +31,7 @@ export function ClientsTable() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
 
+  
   const fetchClients = async () => {
     setLoading(true)
     try {
