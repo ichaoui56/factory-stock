@@ -26,7 +26,10 @@ export function ClientsSummary({ clients }: ClientsSummaryProps) {
     totalPayments: 0,
     totalBalance: 0,
     clientsOweYou: 0,
-    youOweClients: 0
+    youOweClients: 0,
+    totalMoneyLeft: 0,
+    clientsNeedToPay: 0,
+    clientsToBePaid: 0
   })
 
   useEffect(() => {
@@ -37,9 +40,14 @@ export function ClientsSummary({ clients }: ClientsSummaryProps) {
       
       if (client.balance > 0) {
         acc.clientsOweYou += client.balance
+        acc.clientsNeedToPay++ // Client owes money (balance > 0)
       } else if (client.balance < 0) {
         acc.youOweClients += Math.abs(client.balance)
+        acc.clientsToBePaid++ // You owe client (balance < 0)
       }
+      
+      // Calculate money left to be paid by clients
+      acc.totalMoneyLeft = acc.clientsOweYou - acc.youOweClients
       
       return acc
     }, {
@@ -47,7 +55,10 @@ export function ClientsSummary({ clients }: ClientsSummaryProps) {
       totalPayments: 0,
       totalBalance: 0,
       clientsOweYou: 0,
-      youOweClients: 0
+      youOweClients: 0,
+      totalMoneyLeft: 0,
+      clientsNeedToPay: 0,
+      clientsToBePaid: 0
     })
 
     setSummary(totals)
@@ -57,8 +68,22 @@ export function ClientsSummary({ clients }: ClientsSummaryProps) {
     return num.toFixed(2).replace(/\d/g, (d) => d)
   }
 
+  // Function to get color based on balance
+  const getBalanceColor = (balance: number) => {
+    if (balance > 0) return "text-red-600"
+    if (balance < 0) return "text-green-600"
+    return "text-gray-600"
+  }
+
+  // Function to get card color based on balance
+  const getBalanceCardColor = (balance: number) => {
+    if (balance > 0) return "bg-red-50 border-red-200"
+    if (balance < 0) return "bg-green-50 border-green-200"
+    return "bg-gray-50 border-gray-200"
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-4 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
       {/* Total Sales */}
       <Card className="bg-blue-50 border-blue-200">
         <CardHeader className="pb-2">
@@ -89,7 +114,31 @@ export function ClientsSummary({ clients }: ClientsSummaryProps) {
             {toLatinNumbers(summary.totalPayments)} د.م.
           </div>
         </CardContent>
-      </Card>   
+      </Card>
+
+      {/* Money Left (Net Balance) */}
+      <Card className={getBalanceCardColor(summary.totalMoneyLeft)}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center justify-between">
+            <span className={getBalanceColor(summary.totalMoneyLeft)}>
+              {summary.totalMoneyLeft > 0 ? 'شحال باقي كانتسال ' : 
+               summary.totalMoneyLeft < 0 ? 'شحال باقي كانتسال ' : 
+               'ماعندو لا هو ولا هو'}
+            </span>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className={`text-2xl font-bold ${getBalanceColor(summary.totalMoneyLeft)}`}>
+            {toLatinNumbers(Math.abs(summary.totalMoneyLeft))} د.م.
+            
+            
+          </div>
+          
+        </CardContent>
+      </Card>
     </div>
   )
 }
